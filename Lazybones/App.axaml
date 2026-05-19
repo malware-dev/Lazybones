@@ -1,0 +1,11 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Lazybones.App"
+             RequestedThemeVariant="Dark">
+             <!-- The window chrome and palette is hand-styled for a dark look,
+                  so pin the theme to Dark instead of following the OS variant. -->
+
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+</Application>

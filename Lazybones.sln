@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lazybones", "Lazybones\Lazybones.csproj", "{39960AF1-513E-4B7D-9ACF-95CFEDBE4356}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{39960AF1-513E-4B7D-9ACF-95CFEDBE4356}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39960AF1-513E-4B7D-9ACF-95CFEDBE4356}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39960AF1-513E-4B7D-9ACF-95CFEDBE4356}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39960AF1-513E-4B7D-9ACF-95CFEDBE4356}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
