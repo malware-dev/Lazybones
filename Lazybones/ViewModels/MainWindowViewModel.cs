@@ -247,7 +247,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private void PromptStartWithWindows()
     {
         _overlay.ShowConfirmation(
-            "Start with Windows?",
+            $"{StartupService.LoginItemLabel}?",
             "Would you like Get Up, Lazybones! to start automatically when you log in?",
             result =>
             {

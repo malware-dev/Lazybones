@@ -76,6 +76,8 @@ public class DashboardViewModel : ViewModelBase
         }
     }
 
+    public string StartWithOsLabel => StartupService.LoginItemLabel;
+
     public int TodayStandingMinutes => _history.GetTodayStandingMinutes();
 
     public string TodayProgressText => $"{TodayStandingMinutes} / {DailyGoalMinutes} min";

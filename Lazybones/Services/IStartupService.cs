@@ -12,6 +12,9 @@ public static class StartupService
 {
     public static IStartupService Instance { get; } = Create();
 
+    public static string LoginItemLabel =>
+        OperatingSystem.IsMacOS() ? "Open at login" : "Start with Windows";
+
     private static IStartupService Create()
     {
         if (OperatingSystem.IsWindows())

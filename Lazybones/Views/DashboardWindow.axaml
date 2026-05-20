@@ -274,7 +274,7 @@
                                                HorizontalAlignment="Stretch" />
                             </StackPanel>
 
-                            <CheckBox Content="Start with Windows"
+                            <CheckBox Content="{Binding StartWithOsLabel}"
                                       IsChecked="{Binding StartWithWindows}" />
 
                             <TextBlock Classes="muted"
