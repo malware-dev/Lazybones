@@ -22,7 +22,7 @@ jobs:
       version: ${{ steps.read.outputs.value }}
       isPrerelease: ${{ steps.read.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Read version and validate against branch
         id: read
@@ -78,9 +78,9 @@ jobs:
             extraVpkArgs: --bundleId com.malforge.standup
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -88,14 +88,29 @@ jobs:
         shell: bash
         run: dotnet tool install --global vpk
 
-      # macOS bundles want an .icns file. Convert from the PNG checked into
-      # Assets/ so the source of truth stays a single appicon.png — when the
-      # icon gets redesigned, just drop in a new PNG and the workflow picks
-      # it up. `sips` is preinstalled on macOS runners.
+      # macOS bundles want an .icns file. Build an iconset directory from the
+      # PNG and use iconutil to produce the icns — works at any source size.
+      # When the icon gets redesigned, just drop a higher-resolution PNG into
+      # Assets/ (1024x1024 ideal) and this step produces a crisp icns.
+      # `sips` and `iconutil` are preinstalled on macOS runners.
       - name: Generate macOS .icns from PNG
         if: runner.os == 'macOS'
         shell: bash
-        run: sips -s format icns Lazybones/Assets/appicon.png --out icon.icns
+        run: |
+          set -e
+          src=Lazybones/Assets/appicon.png
+          mkdir -p icon.iconset
+          sips -z 16   16   "$src" --out icon.iconset/icon_16x16.png
+          sips -z 32   32   "$src" --out icon.iconset/icon_16x16@2x.png
+          sips -z 32   32   "$src" --out icon.iconset/icon_32x32.png
+          sips -z 64   64   "$src" --out icon.iconset/icon_32x32@2x.png
+          sips -z 128  128  "$src" --out icon.iconset/icon_128x128.png
+          sips -z 256  256  "$src" --out icon.iconset/icon_128x128@2x.png
+          sips -z 256  256  "$src" --out icon.iconset/icon_256x256.png
+          sips -z 512  512  "$src" --out icon.iconset/icon_256x256@2x.png
+          sips -z 512  512  "$src" --out icon.iconset/icon_512x512.png
+          sips -z 1024 1024 "$src" --out icon.iconset/icon_512x512@2x.png
+          iconutil -c icns icon.iconset -o icon.icns
 
       - name: Publish
         shell: bash
@@ -123,7 +138,7 @@ jobs:
             ${{ matrix.extraVpkArgs }}
 
       - name: Upload pack artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pack-${{ matrix.rid }}
           if-no-files-found: error
@@ -136,7 +151,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Extract release notes for this version
         id: notes
@@ -162,14 +177,14 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Download all pack artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: releases
           pattern: pack-*
           merge-multiple: true
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
