@@ -35,7 +35,11 @@ public class AppState
     public bool IsStanding { get; set; }
     public int StandingTimeInMinutes { get; set; } = 30;
     public int SittingTimeInMinutes { get; set; } = 120;
-    public int DailyGoalMinutes { get; set; } = 60;
+    // Number of standing cycles per day that count as hitting the daily goal.
+    // Used by the streak, outer ring, and the goal-based achievements. Replaces
+    // an older minutes-based "DailyGoalMinutes" field — old state.json files
+    // missing this property fall back to the default.
+    public int DailyCycleGoal { get; set; } = 3;
     public bool HasAskedAboutStartup { get; set; }
     public bool StartWithWindows { get; set; }
     public List<string> UnlockedAchievementIds { get; set; } = new();

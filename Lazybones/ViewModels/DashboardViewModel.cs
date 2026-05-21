@@ -29,6 +29,7 @@ public class DashboardViewModel : ViewModelBase
             .ToList();
 
         HeatmapData = BuildHeatmap();
+        CyclesPerDay = BuildCyclesPerDay();
 
         CheckForUpdatesCommand = new RelayCommand(() => _ = _updates.CheckAsync());
         RestartNowCommand = new RelayCommand(_updates.ApplyAndRestart);
@@ -115,19 +116,24 @@ public class DashboardViewModel : ViewModelBase
         }
     }
 
-    public int DailyGoalMinutes
+    public int DailyCycleGoal
     {
-        get => _state.DailyGoalMinutes;
+        get => _state.DailyCycleGoal;
         set
         {
-            if (_state.DailyGoalMinutes == value) return;
-            _state.DailyGoalMinutes = value;
+            if (_state.DailyCycleGoal == value) return;
+            _state.DailyCycleGoal = value;
             _state.SaveState();
-            OnPropertyChanged(nameof(DailyGoalMinutes));
+            OnPropertyChanged(nameof(DailyCycleGoal));
             OnPropertyChanged(nameof(TodayProgressText));
+            OnPropertyChanged(nameof(DailyMinuteThreshold));
             _onDailyGoalChanged();
         }
     }
+
+    // Derived from cycle goal × cycle length — the implicit minute equivalent
+    // of your daily commitment. The heatmap uses this to colour cells.
+    public int DailyMinuteThreshold => _state.DailyCycleGoal * _state.StandingTimeInMinutes;
 
     public bool StartWithWindows
     {
@@ -145,13 +151,17 @@ public class DashboardViewModel : ViewModelBase
     public string StartWithOsLabel => StartupService.LoginItemLabel;
 
     public int TodayStandingMinutes => _history.GetTodayStandingMinutes();
+    public int TodayStandingCycles => _history.GetTodayStandingCycles();
 
-    public string TodayProgressText => $"{TodayStandingMinutes} / {DailyGoalMinutes} min";
+    public string TodayProgressText => $"{TodayStandingCycles} / {DailyCycleGoal} cycles";
+    public string TodayMinutesText => $"{TodayStandingMinutes} min stood";
 
     public int CurrentStreak => StreakCalculator.CalculateCurrent(
-        _history, _state.DailyGoalMinutes, DateOnly.FromDateTime(DateTime.Now));
+        _history, _state.DailyCycleGoal, DateOnly.FromDateTime(DateTime.Now));
 
     public IReadOnlyDictionary<DateOnly, int> HeatmapData { get; }
+
+    public IReadOnlyList<int> CyclesPerDay { get; }
 
     public IReadOnlyList<AchievementViewItem> Achievements { get; }
 
@@ -175,6 +185,24 @@ public class DashboardViewModel : ViewModelBase
             data[d] = data.GetValueOrDefault(d, 0) + r.ActualDurationSeconds / 60;
         }
         return data;
+    }
+
+    private int[] BuildCyclesPerDay()
+    {
+        const int days = 14;
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var start = today.AddDays(-(days - 1));
+        var records = _history.GetRange(start, today.AddDays(1));
+
+        var result = new int[days];
+        foreach (var r in records)
+        {
+            if (!r.WasStanding || r.Outcome != CycleOutcome.CompletedNaturally) continue;
+            var day = DateOnly.FromDateTime(r.StartedAt);
+            var index = day.DayNumber - start.DayNumber;
+            if (index >= 0 && index < days) result[index]++;
+        }
+        return result;
     }
 }
 

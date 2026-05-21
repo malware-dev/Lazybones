@@ -43,8 +43,11 @@ public sealed class UpdateService : INotifyPropertyChanged
         return http;
     }
 
+    private static readonly TimeSpan BackgroundCheckInterval = TimeSpan.FromMinutes(30);
+
     private readonly UpdateManager _mgr;
     private UpdateInfo? _pendingUpdate;
+    private DateTime _lastBackgroundCheck = DateTime.MinValue;
 
     private UpdateState _state = UpdateState.Idle;
     private string _currentVersion = "0.0.0";
@@ -122,6 +125,15 @@ public sealed class UpdateService : INotifyPropertyChanged
             _ = Task.Run(() => Instance.SimulateUpdateReadyAsync(fakeVersion!.Trim()));
             return;
         }
+
+        // Throttle background checks. Without this, every cycle-state change
+        // would hit GitHub — fine in normal use (cycles are 60+ minutes apart)
+        // but spammy if the user mashes Swap. Manual checks via the dashboard
+        // bypass this gate by calling CheckAsync directly.
+        var now = DateTime.UtcNow;
+        if (now - Instance._lastBackgroundCheck < BackgroundCheckInterval) return;
+        Instance._lastBackgroundCheck = now;
+
         _ = Task.Run(() => Instance.CheckAsync());
     }
 

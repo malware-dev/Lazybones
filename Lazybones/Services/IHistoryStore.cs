@@ -11,4 +11,5 @@ public interface IHistoryStore
     IReadOnlyList<CycleRecord> GetRange(DateOnly from, DateOnly to);
     IReadOnlyList<CycleRecord> GetAll();
     int GetTodayStandingMinutes();
+    int GetTodayStandingCycles();
 }

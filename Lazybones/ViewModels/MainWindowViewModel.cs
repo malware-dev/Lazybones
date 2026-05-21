@@ -132,8 +132,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (!_state.HasAskedAboutStartup)
             Dispatcher.UIThread.Post(PromptStartWithWindows, DispatcherPriority.Background);
-
-        UpdateService.CheckInBackground();
     }
 
     private void StartNewCycle()
@@ -141,6 +139,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _cycleStartedAt = DateTime.Now;
         _cyclePlannedSeconds = (IsStanding ? _state.StandingTimeInMinutes : _state.SittingTimeInMinutes) * 60;
         RefreshInnerRing();
+
+        // Piggy-back update checks onto cycle starts: covers startup (initial
+        // cycle), every natural trigger, manual Swap, and Reset — i.e., every
+        // moment the user is actively engaging with the app. UpdateService
+        // throttles repeated calls so a Swap-mashing user can't spam GitHub.
+        UpdateService.CheckInBackground();
     }
 
     private void RecordCurrentCycle(CycleOutcome outcome, bool promptDismissed = false)
@@ -191,7 +195,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
         var newly = AchievementRules.EvaluateNewlyUnlocked(
-            record, _history, _state.DailyGoalMinutes, _state.UnlockedAchievementIds, today);
+            record, _history, _state.DailyCycleGoal, _state.UnlockedAchievementIds, today);
         if (newly.Count == 0) return;
 
         foreach (var ach in newly)
@@ -204,14 +208,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void RefreshOuterRing()
     {
-        var goal = Math.Max(1, _state.DailyGoalMinutes);
-        OuterRingProgress = Math.Min(1.0, (double)_history.GetTodayStandingMinutes() / goal);
+        var goal = Math.Max(1, _state.DailyCycleGoal);
+        OuterRingProgress = Math.Min(1.0, (double)_history.GetTodayStandingCycles() / goal);
     }
 
     private void RefreshStreak()
     {
-        Streak = StreakCalculator.CalculateCurrent(_history, _state.DailyGoalMinutes,
-            DateOnly.FromDateTime(DateTime.Now));
+        Streak = StreakCalculator.CalculateCurrent(_history, _state.DailyCycleGoal, DateOnly.FromDateTime(DateTime.Now));
     }
 
     public int Streak

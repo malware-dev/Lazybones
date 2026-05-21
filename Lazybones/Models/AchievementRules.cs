@@ -18,11 +18,11 @@ public static class AchievementRules
     public static IReadOnlyList<Achievement> EvaluateNewlyUnlocked(
         CycleRecord justAppended,
         IHistoryStore history,
-        int dailyGoalMinutes,
+        int dailyCycleGoal,
         ICollection<string> alreadyUnlocked,
         DateOnly today)
     {
-        var ctx = new EvalContext(justAppended, history, dailyGoalMinutes, today);
+        var ctx = new EvalContext(justAppended, history, dailyCycleGoal, today);
 
         var newly = new List<Achievement>();
         foreach (var ach in AchievementCatalog.All)
@@ -75,13 +75,13 @@ public static class AchievementRules
                 c.TodayCycleCount >= 5,
 
             AchievementCatalog.OverachieverId =>
-                c.TodayStandingMinutes >= c.DailyGoalMinutes * 1.5,
+                c.TodayStandingCycles >= c.DailyCycleGoal * 1.5,
 
             AchievementCatalog.DoubleDownId =>
-                c.TodayStandingMinutes >= c.DailyGoalMinutes * 2,
+                c.TodayStandingCycles >= c.DailyCycleGoal * 2,
 
             AchievementCatalog.PerfectDayId =>
-                c.TodayStandingMinutes >= c.DailyGoalMinutes
+                c.TodayStandingCycles >= c.DailyCycleGoal
                 && c.History.GetDay(c.Today).All(r => !r.PromptDismissed),
 
             AchievementCatalog.CenturionId =>
@@ -99,24 +99,27 @@ public static class AchievementRules
 
     private sealed class EvalContext
     {
-        public EvalContext(CycleRecord record, IHistoryStore history, int dailyGoalMinutes, DateOnly today)
+        public EvalContext(CycleRecord record, IHistoryStore history, int dailyCycleGoal, DateOnly today)
         {
             Record = record;
             History = history;
-            DailyGoalMinutes = dailyGoalMinutes;
+            DailyCycleGoal = dailyCycleGoal;
             Today = today;
         }
 
         public CycleRecord Record { get; }
         public IHistoryStore History { get; }
-        public int DailyGoalMinutes { get; }
+        public int DailyCycleGoal { get; }
         public DateOnly Today { get; }
 
         private int? _currentStreak;
-        public int CurrentStreak => _currentStreak ??= StreakCalculator.CalculateCurrent(History, DailyGoalMinutes, Today);
+        public int CurrentStreak => _currentStreak ??= StreakCalculator.CalculateCurrent(History, DailyCycleGoal, Today);
 
         private int? _todayStandingMinutes;
         public int TodayStandingMinutes => _todayStandingMinutes ??= History.GetTodayStandingMinutes();
+
+        private int? _todayStandingCycles;
+        public int TodayStandingCycles => _todayStandingCycles ??= History.GetTodayStandingCycles();
 
         private int? _todayCycleCount;
         public int TodayCycleCount => _todayCycleCount ??=

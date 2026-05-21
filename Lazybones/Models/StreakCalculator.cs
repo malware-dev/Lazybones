@@ -7,46 +7,49 @@ namespace Lazybones.Models;
 
 public static class StreakCalculator
 {
-    // Duolingo-style: 1 missed day per rolling 7-day window doesn't break the streak.
-    // Today is treated as pending (neither hit nor miss) if its standing minutes are
-    // still below the goal — we don't want a fresh morning to look like a missed day.
-    public static int CalculateCurrent(IHistoryStore history, int dailyGoalMinutes, DateOnly today)
+    // A streak day = an active day where the user completed at least
+    // `dailyCycleGoal` standing cycles, dated by when each cycle STARTED.
+    // Cycles ended early via Swap or Reset don't count (Outcome must be
+    // CompletedNaturally).
+    //
+    // No real-time loss action — the streak fails at end-of-day when an
+    // active day finishes below the goal. Days with no records at all
+    // (screen locked all day / app paused / machine off) are "paused" and
+    // neither extend nor break the streak. Today is pending while still
+    // below the goal — a fresh morning doesn't look like a miss.
+    public static int CalculateCurrent(IHistoryStore history, int dailyCycleGoal, DateOnly today)
     {
-        if (dailyGoalMinutes <= 0) return 0;
+        if (dailyCycleGoal <= 0) return 0;
 
         var lookback = today.AddDays(-365);
-        var minutesByDay = history.GetRange(lookback, today)
-            .Where(r => r.WasStanding)
-            .GroupBy(r => DateOnly.FromDateTime(r.EndedAt))
-            .ToDictionary(g => g.Key, g => g.Sum(r => r.ActualDurationSeconds) / 60);
+        var records = history.GetRange(lookback, today.AddDays(1));
 
+        // Count completed standing cycles per day, attributed by StartedAt.
+        var cyclesByDay = records
+            .Where(r => r.WasStanding && r.Outcome == CycleOutcome.CompletedNaturally)
+            .GroupBy(r => DateOnly.FromDateTime(r.StartedAt))
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        // "Active days" = any cycle ever started on that date. Includes sitting
+        // and abandoned cycles — we just need to know whether Lazybones saw
+        // the user that day at all.
+        var activeDays = new HashSet<DateOnly>(
+            records.Select(r => DateOnly.FromDateTime(r.StartedAt)));
+
+        // Today is pending until the count hits the goal.
         var startDay = today;
-        var todayMinutes = minutesByDay.GetValueOrDefault(today, 0);
-        if (todayMinutes < dailyGoalMinutes)
+        if (cyclesByDay.GetValueOrDefault(today, 0) < dailyCycleGoal)
             startDay = today.AddDays(-1);
 
         var streak = 0;
-        DateOnly? lastFreezeDay = null;
-
         for (var d = startDay; d >= lookback; d = d.AddDays(-1))
         {
-            if (lastFreezeDay.HasValue && lastFreezeDay.Value.DayNumber - d.DayNumber > 6)
-                lastFreezeDay = null;
-
-            var minutes = minutesByDay.GetValueOrDefault(d, 0);
-            if (minutes >= dailyGoalMinutes)
-            {
+            if (!activeDays.Contains(d)) continue; // paused day — skip
+            if (cyclesByDay.GetValueOrDefault(d, 0) >= dailyCycleGoal)
                 streak++;
-            }
             else
-            {
-                if (lastFreezeDay == null)
-                    lastFreezeDay = d;
-                else
-                    break;
-            }
+                break; // active day missed the goal
         }
-
         return streak;
     }
 }

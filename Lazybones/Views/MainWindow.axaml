@@ -35,7 +35,6 @@
         <StreamGeometry x:Key="PauseGeometry">M6 19h4V5H6v14zm8-14v14h4V5h-4z</StreamGeometry>
         <StreamGeometry x:Key="ResetGeometry">M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10H17.65A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z</StreamGeometry>
         <StreamGeometry x:Key="SwapGeometry">M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3 5 6.99h3V14h2V6.99h3z</StreamGeometry>
-        <StreamGeometry x:Key="SettingsGeometry">M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54A.484.484 0 0 0 13.92 2h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.47a.5.5 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z</StreamGeometry>
         <StreamGeometry x:Key="CloseGeometry">M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z</StreamGeometry>
         <StreamGeometry x:Key="MinimizeGeometry">M6 19h12v2H6z</StreamGeometry>
         <StreamGeometry x:Key="FlameGeometry">M19.48 12.35c-1.57-4.08-7.16-4.3-5.81-10.23.1-.44-.37-.78-.75-.55C9.29 3.71 6.68 8 8.87 13.62c.18.46-.36.89-.75.59-1.81-1.37-2-3.34-1.84-4.75.06-.52-.62-.77-.91-.34C4.69 10.16 4 11.84 4 14.37c.38 5.6 5.11 7.32 6.81 7.54 2.43.31 5.06-.14 6.95-1.87 2.08-1.93 2.84-5.01 1.72-7.69z</StreamGeometry>
@@ -291,7 +290,7 @@
                     <Button Classes="dashboard"
                             ToolTip.Tip="Stats, achievements &amp; settings"
                             Command="{Binding DashboardCommand}">
-                        <PathIcon Classes="btnicon" Data="{StaticResource SettingsGeometry}" />
+                        <PathIcon Classes="btnicon" Data="{StaticResource StatsGeometry}" />
                     </Button>
 
                 </StackPanel>

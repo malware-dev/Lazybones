@@ -66,6 +66,19 @@ public sealed class HistoryStore : IHistoryStore
         return seconds / 60;
     }
 
+    public int GetTodayStandingCycles()
+    {
+        // Count of standing cycles that ran to natural completion today, dated
+        // by when the cycle STARTED. A standing cycle that began at 11:55 PM
+        // and finished at 12:25 AM is attributed to the day it started — when
+        // the user committed to standing is what counts toward the goal.
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        return LoadAll()
+            .Count(r => r.WasStanding
+                        && r.Outcome == CycleOutcome.CompletedNaturally
+                        && DateOnly.FromDateTime(r.StartedAt) == today);
+    }
+
     private List<CycleRecord> LoadAll()
     {
         lock (_lock)

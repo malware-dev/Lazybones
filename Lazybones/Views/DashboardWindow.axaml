@@ -175,6 +175,7 @@
                                     <StackPanel Spacing="2">
                                         <TextBlock Classes="label" Text="Today" />
                                         <TextBlock Classes="h1" Text="{Binding TodayProgressText}" />
+                                        <TextBlock Classes="muted" Text="{Binding TodayMinutesText}" />
                                     </StackPanel>
                                 </Border>
                                 <Border Grid.Column="2" Classes="statcard">
@@ -193,16 +194,29 @@
                                 </Border>
                             </Grid>
 
-                            <Border Classes="statcard">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Classes="label" Text="Last 13 weeks (standing minutes per day)" />
-                                    <controls:Heatmap MinutesByDay="{Binding HeatmapData}"
-                                                      DailyGoalMinutes="{Binding DailyGoalMinutes}"
-                                                      Width="370"
-                                                      Height="110"
-                                                      HorizontalAlignment="Center" />
-                                </StackPanel>
-                            </Border>
+                            <Grid ColumnDefinitions="*,12,*">
+                                <Border Grid.Column="0" Classes="statcard">
+                                    <StackPanel Spacing="8">
+                                        <controls:Heatmap MinutesByDay="{Binding HeatmapData}"
+                                                          DailyGoalMinutes="{Binding DailyMinuteThreshold}"
+                                                          Height="100"
+                                                          HorizontalAlignment="Stretch" />
+                                        <TextBlock Classes="label"
+                                                   Text="Last 13 weeks · minutes per day"
+                                                   HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="2" Classes="statcard">
+                                    <StackPanel Spacing="8">
+                                        <controls:CyclesPerDayBars Values="{Binding CyclesPerDay}"
+                                                                   Height="100"
+                                                                   HorizontalAlignment="Stretch" />
+                                        <TextBlock Classes="label"
+                                                   Text="Last 14 days · cycles per day"
+                                                   HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
 
                         </StackPanel>
                     </TabItem>
@@ -265,9 +279,9 @@
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Classes="label" Text="Daily standing goal (minutes)" />
-                                <NumericUpDown Value="{Binding DailyGoalMinutes}"
-                                               Minimum="10" Maximum="720" Increment="15"
+                                <TextBlock Classes="label" Text="Daily standing cycles" />
+                                <NumericUpDown Value="{Binding DailyCycleGoal}"
+                                               Minimum="1" Maximum="20" Increment="1"
                                                FormatString="0"
                                                HorizontalAlignment="Stretch" />
                             </StackPanel>
