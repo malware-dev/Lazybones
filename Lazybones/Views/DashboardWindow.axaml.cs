@@ -14,9 +14,4 @@ public partial class DashboardWindow : Window
     {
         Close();
     }
-
-    private void MinifyButton_OnClick(object? sender, RoutedEventArgs e)
-    {
-        WindowState = WindowState.Minimized;
-    }
 }

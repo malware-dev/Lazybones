@@ -518,6 +518,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         {
             if (_dashboard.DataContext is DashboardViewModel existingVm)
                 existingVm.SelectedTabIndex = initialTabIndex;
+            // Restore if the user minimized via taskbar / OS shortcut — without
+            // this, Activate() on a minimized window can leave it in the tray
+            // and the cog button appears to do nothing.
+            if (_dashboard.WindowState == Avalonia.Controls.WindowState.Minimized)
+                _dashboard.WindowState = Avalonia.Controls.WindowState.Normal;
             _dashboard.Activate();
             return;
         }

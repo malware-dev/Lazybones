@@ -6,11 +6,6 @@ on:
     paths:
       - 'Lazybones/PackageVersion.txt'
   workflow_dispatch:
-    inputs:
-      deployRelease:
-        description: 'Deploy release (y/n)'
-        required: true
-        default: 'n'
 
 permissions:
   contents: write
@@ -153,26 +148,70 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Extract release notes for this version
+      - name: Compose release body
         id: notes
         shell: bash
         run: |
           VERSION="${{ needs.validate-version.outputs.version }}"
-          ESCAPED=$(echo "$VERSION" | sed 's/\./\\./g')
+          IS_PRERELEASE="${{ needs.validate-version.outputs.isPrerelease }}"
 
-          NOTES=$(awk '/^v\.'"$ESCAPED"'$/,/^v\./ {
-            if (/^v\.'"$ESCAPED"'$/) next
-            if (/^v\./) exit
-            print
-          }' Lazybones/ReleaseNotes.txt)
+          # State-machine extraction: print lines after the "v.<VERSION>" header
+          # and before the next "v.<anything>" header. Tolerant of CRLF endings.
+          # Avoids awk's range-pattern gotcha (range collapses to a single line
+          # when both endpoint patterns happen to match the same line, which
+          # happens when ReleaseNotes.txt only has one version entry).
+          NOTES=$(awk -v ver="$VERSION" '
+            { sub(/\r$/, "") }
+            $0 == "v." ver { found=1; next }
+            found && /^v\./ { exit }
+            found { print }
+          ' Lazybones/ReleaseNotes.txt)
+
+          echo "::group::Extracted release notes for v$VERSION"
+          echo "$NOTES"
+          echo "::endgroup::"
 
           if [ -z "$NOTES" ]; then
             NOTES="No release notes provided for v$VERSION."
           fi
 
+          INSTALL_GUIDE=$(cat <<'EOF'
+          ## First time installing?
+
+          Lazybones is an open-source personal project and isn't code-signed. Windows SmartScreen and macOS Gatekeeper will both show a warning on first install — **that's expected**. Code-signing certificates cost real money and aren't worth it for a free personal tool. The source is public on this repo; you can read it.
+
+          **Windows**
+
+          1. Download `Lazybones-win-Setup.exe` below.
+          2. Run it. SmartScreen will warn that the app is from an unknown publisher.
+          3. Click **More info**, then **Run anyway**.
+
+          **macOS**
+
+          1. Download `Lazybones-osx-Setup.pkg` below.
+          2. Open it. Gatekeeper will refuse to run it.
+          3. **Control-click** the `.pkg` in Finder, choose **Open**, then click **Open** in the warning dialog.
+
+          Once installed, future updates download and apply themselves the next time you launch the app — you don't need to repeat any of this.
+
+          ---
+          EOF
+          )
+
+          PRERELEASE_WARNING=""
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            PRERELEASE_WARNING=$'\n> **Pre-release notice:** this is a pre-release build intended for testing. It may contain bugs or incomplete features. Please report anything weird.\n'
+          fi
+
+          BODY="${INSTALL_GUIDE}${PRERELEASE_WARNING}
+
+          ## What's new
+
+          ${NOTES}"
+
           {
             echo "value<<EOF"
-            echo "$NOTES"
+            echo "$BODY"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 

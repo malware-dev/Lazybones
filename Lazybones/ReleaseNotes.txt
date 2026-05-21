@@ -1,3 +1,11 @@
+v.1.0.1
+   - Added an Updates tab to the dashboard showing the running version, status, release notes for any new version, and Check-for-updates / Restart-now buttons.
+   - New blue indicator below the clock on the main disk when an update is ready — click to jump to the Updates tab.
+   - Clicking the cog button now restores the dashboard when it's been minimized via the taskbar instead of doing nothing.
+   - Removed the dashboard's minimize button — closing is the right gesture for a transient dialog.
+   - Release pages now include an install guide explaining the SmartScreen / Gatekeeper warnings and the click-through steps for each platform.
+   - Fixed: release-notes extraction in CI no longer drops the body when the file contains only one version entry.
+
 v.1.0.0
    - First public release of Get Up, Lazybones!
    - Sit/stand reminder that lives as a round transparent desktop disk on Windows and macOS.
