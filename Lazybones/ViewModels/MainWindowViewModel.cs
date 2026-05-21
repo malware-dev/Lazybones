@@ -129,6 +129,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (!_state.HasAskedAboutStartup)
             Dispatcher.UIThread.Post(PromptStartWithWindows, DispatcherPriority.Background);
+
+        UpdateService.CheckInBackground();
     }
 
     private void StartNewCycle()

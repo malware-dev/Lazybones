@@ -4,6 +4,11 @@
         <TargetFrameworks>net10.0;net10.0-windows10.0.17763.0</TargetFrameworks>
         <Nullable>enable</Nullable>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <!-- Version is single-sourced from PackageVersion.txt alongside the csproj.
+             Both local builds and CI read from the same file; the version-guard
+             workflow enforces that it gets bumped whenever code in this folder
+             changes (matching MDK2's release ritual). -->
+        <Version Condition="Exists('PackageVersion.txt')">$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/PackageVersion.txt').Trim())</Version>
         <!-- Required by [LibraryImport]'s source-generated marshalling stubs.
              No hand-written unsafe code in this project. -->
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -36,7 +41,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <AvaloniaResource Include="Assets\**"/>
+        <AvaloniaResource Include="Assets\**" />
     </ItemGroup>
 
     <ItemGroup>
@@ -50,5 +55,6 @@
         <!-- Used by WindowsUserPresenceMonitor for SessionSwitch events.
              Cross-platform package but only invoked on Windows. -->
         <PackageReference Include="Microsoft.Win32.SystemEvents" Version="9.0.0" />
+        <PackageReference Include="Velopack" Version="0.0.1298" />
     </ItemGroup>
 </Project>

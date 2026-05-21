@@ -1,0 +1,181 @@
+name: release
+
+on:
+  push:
+    branches: [main, prerelease]
+    paths:
+      - 'Lazybones/PackageVersion.txt'
+  workflow_dispatch:
+    inputs:
+      deployRelease:
+        description: 'Deploy release (y/n)'
+        required: true
+        default: 'n'
+
+permissions:
+  contents: write
+
+jobs:
+  validate-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read.outputs.value }}
+      isPrerelease: ${{ steps.read.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version and validate against branch
+        id: read
+        shell: bash
+        run: |
+          VERSION=$(cat Lazybones/PackageVersion.txt | tr -d '\r' | tr -d '\n' | xargs)
+          echo "Version: $VERSION"
+
+          if [[ "$VERSION" == *"-"* ]]; then
+            HAS_SUFFIX=true
+          else
+            HAS_SUFFIX=false
+          fi
+
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          if [ "$BRANCH" = "main" ] && [ "$HAS_SUFFIX" = "true" ]; then
+            echo "ERROR: main branch must not have a prerelease suffix (got '$VERSION')"
+            exit 1
+          fi
+          if [ "$BRANCH" = "prerelease" ] && [ "$HAS_SUFFIX" = "false" ]; then
+            echo "ERROR: prerelease branch requires a suffix (got '$VERSION')"
+            exit 1
+          fi
+
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$HAS_SUFFIX" >> "$GITHUB_OUTPUT"
+
+  pack:
+    needs: validate-version
+    name: Pack ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            framework: net10.0-windows10.0.17763.0
+            mainExe: Lazybones.exe
+            iconPath: Lazybones/Assets/appicon.ico
+            extraVpkArgs: ''
+          - os: macos-latest
+            rid: osx-arm64
+            framework: net10.0
+            mainExe: Lazybones
+            iconPath: icon.icns
+            extraVpkArgs: --bundleId com.malforge.standup
+          - os: macos-latest
+            rid: osx-x64
+            framework: net10.0
+            mainExe: Lazybones
+            iconPath: icon.icns
+            extraVpkArgs: --bundleId com.malforge.standup
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Velopack CLI
+        shell: bash
+        run: dotnet tool install --global vpk
+
+      # macOS bundles want an .icns file. Convert from the PNG checked into
+      # Assets/ so the source of truth stays a single appicon.png — when the
+      # icon gets redesigned, just drop in a new PNG and the workflow picks
+      # it up. `sips` is preinstalled on macOS runners.
+      - name: Generate macOS .icns from PNG
+        if: runner.os == 'macOS'
+        shell: bash
+        run: sips -s format icns Lazybones/Assets/appicon.png --out icon.icns
+
+      - name: Publish
+        shell: bash
+        run: |
+          dotnet publish Lazybones/Lazybones.csproj \
+            -c Release \
+            -f ${{ matrix.framework }} \
+            -r ${{ matrix.rid }} \
+            --self-contained \
+            -p:PublishSingleFile=true \
+            -o publish
+
+      - name: vpk pack
+        shell: bash
+        run: |
+          vpk pack \
+            --packId Lazybones \
+            --packVersion ${{ needs.validate-version.outputs.version }} \
+            --packDir publish \
+            --mainExe ${{ matrix.mainExe }} \
+            --packTitle "Get Up, Lazybones!" \
+            --packAuthors "Morten Aune Lyrstad" \
+            --runtime ${{ matrix.rid }} \
+            --icon ${{ matrix.iconPath }} \
+            ${{ matrix.extraVpkArgs }}
+
+      - name: Upload pack artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pack-${{ matrix.rid }}
+          if-no-files-found: error
+          retention-days: 7
+          path: Releases/*
+
+  release:
+    needs: [validate-version, pack]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract release notes for this version
+        id: notes
+        shell: bash
+        run: |
+          VERSION="${{ needs.validate-version.outputs.version }}"
+          ESCAPED=$(echo "$VERSION" | sed 's/\./\\./g')
+
+          NOTES=$(awk '/^v\.'"$ESCAPED"'$/,/^v\./ {
+            if (/^v\.'"$ESCAPED"'$/) next
+            if (/^v\./) exit
+            print
+          }' Lazybones/ReleaseNotes.txt)
+
+          if [ -z "$NOTES" ]; then
+            NOTES="No release notes provided for v$VERSION."
+          fi
+
+          {
+            echo "value<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download all pack artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: releases
+          pattern: pack-*
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.validate-version.outputs.version }}
+          name: Get Up, Lazybones! v${{ needs.validate-version.outputs.version }}
+          body: ${{ steps.notes.outputs.value }}
+          prerelease: ${{ needs.validate-version.outputs.isPrerelease == 'true' }}
+          target_commitish: ${{ github.sha }}
+          files: releases/*

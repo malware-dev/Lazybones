@@ -1,0 +1,5 @@
+v.0.1.0
+   - First public release of Get Up, Lazybones!
+   - Sit/stand reminder timer with auto-pause on session lock (Windows + macOS).
+   - Dashboard window with stats, achievements, and settings.
+   - Velopack-based auto-update from GitHub Releases.
