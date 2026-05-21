@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Lazybones.Views;
+using Lazybones.Features.Shell;
 
 namespace Lazybones;
 
@@ -18,7 +18,7 @@ public partial class App : Application
         {
             var mainWindow = new MainWindow
             {
-                DataContext = new ViewModels.MainWindowViewModel()
+                DataContext = new MainWindowViewModel()
             };
             desktop.MainWindow = mainWindow;
         }
