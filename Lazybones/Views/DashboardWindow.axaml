@@ -166,7 +166,7 @@
                 </Grid>
 
                 <!-- Tabs -->
-                <TabControl Grid.Row="1">
+                <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}">
 
                     <!-- ============================ STATS ============================ -->
                     <TabItem Header="Stats">
@@ -282,6 +282,65 @@
                                        Margin="0,4,0,0" />
 
                         </StackPanel>
+                    </TabItem>
+
+                    <!-- ========================== UPDATES =========================== -->
+                    <TabItem Header="Updates">
+                        <Grid Margin="18,12,18,18"
+                              RowDefinitions="Auto,Auto,*,Auto"
+                              RowSpacing="12">
+
+                            <!-- Current version -->
+                            <Border Grid.Row="0" Classes="statcard">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Classes="label" Text="Running version" />
+                                    <TextBlock Classes="h1" Text="{Binding CurrentVersionText}" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Status -->
+                            <Border Grid.Row="1" Classes="statcard">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Classes="label" Text="{Binding UpdateStatusLabel}" />
+                                    <TextBlock Classes="body"
+                                               Text="{Binding UpdateStatusText}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Release notes (only when an update is ready) -->
+                            <Border Grid.Row="2"
+                                    Classes="statcard"
+                                    IsVisible="{Binding HasUpdateReady}">
+                                <Grid RowDefinitions="Auto,*">
+                                    <TextBlock Grid.Row="0"
+                                               Classes="label"
+                                               Text="What's new"
+                                               Margin="0,0,0,8" />
+                                    <ScrollViewer Grid.Row="1"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <TextBlock Classes="body"
+                                                   Text="{Binding ReleaseNotesText}"
+                                                   TextWrapping="Wrap"
+                                                   FontFamily="Consolas,Menlo,monospace"
+                                                   FontSize="12" />
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
+
+                            <!-- Actions -->
+                            <StackPanel Grid.Row="3"
+                                        Orientation="Horizontal"
+                                        HorizontalAlignment="Right"
+                                        Spacing="8">
+                                <Button Content="Check for updates"
+                                        Command="{Binding CheckForUpdatesCommand}"
+                                        IsEnabled="{Binding CanCheckForUpdates}" />
+                                <Button Content="Restart now"
+                                        Command="{Binding RestartNowCommand}"
+                                        IsVisible="{Binding HasUpdateReady}" />
+                            </StackPanel>
+                        </Grid>
                     </TabItem>
 
                 </TabControl>

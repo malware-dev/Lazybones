@@ -41,6 +41,7 @@
         <StreamGeometry x:Key="FlameGeometry">M19.48 12.35c-1.57-4.08-7.16-4.3-5.81-10.23.1-.44-.37-.78-.75-.55C9.29 3.71 6.68 8 8.87 13.62c.18.46-.36.89-.75.59-1.81-1.37-2-3.34-1.84-4.75.06-.52-.62-.77-.91-.34C4.69 10.16 4 11.84 4 14.37c.38 5.6 5.11 7.32 6.81 7.54 2.43.31 5.06-.14 6.95-1.87 2.08-1.93 2.84-5.01 1.72-7.69z</StreamGeometry>
         <StreamGeometry x:Key="StatsGeometry">M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z</StreamGeometry>
         <StreamGeometry x:Key="CoffeeGeometry">M2 21h18v-2H2v2zM20 8h-2V5H4v6c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.1 0 2-.9 2-2v-2c0-1.11-.9-2-2-2zm0 4h-2v-2h2v2z</StreamGeometry>
+        <StreamGeometry x:Key="SystemUpdateGeometry">M12 16.5 6 10.5l1.41-1.41L11 12.67V3h2v9.67l3.59-3.58L18 10.5l-6 6zm-9 1.5h18v2H3z</StreamGeometry>
     </Window.Resources>
 
     <Window.Styles>
@@ -227,6 +228,34 @@
                                Foreground="#FFFF8C42"
                                VerticalAlignment="Center" />
                 </StackPanel>
+
+                <!-- Update indicator, just below the timer (mirrors the streak above).
+                     Hidden when no update is ready. Click opens the dashboard on the
+                     Updates tab. -->
+                <Button Grid.Row="0"
+                        Grid.RowSpan="3"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Margin="0,72,0,0"
+                        Padding="6,2"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        IsVisible="{Binding HasUpdate}"
+                        Command="{Binding OpenUpdatesCommand}"
+                        ToolTip.Tip="A new version is ready — click for release notes and to restart">
+                    <StackPanel Orientation="Horizontal" Spacing="3">
+                        <PathIcon Width="14" Height="14"
+                                  Data="{StaticResource SystemUpdateGeometry}"
+                                  Foreground="#FF4CC2FF"
+                                  VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding AvailableVersionText}"
+                                   FontSize="13"
+                                   FontWeight="Bold"
+                                   Foreground="#FF4CC2FF"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
 
                 <!-- Action buttons, lifted above the bottom chord -->
                 <StackPanel Grid.Row="2"

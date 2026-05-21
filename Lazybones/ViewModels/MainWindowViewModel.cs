@@ -79,10 +79,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         PlayPauseCommand = new RelayCommand(PlayPause);
         ResetCommand = new RelayCommand(TryReset);
         SwapCommand = new RelayCommand(TryToggle);
-        DashboardCommand = new RelayCommand(ShowDashboard);
+        DashboardCommand = new RelayCommand(() => ShowDashboard());
+        OpenUpdatesCommand = new RelayCommand(() => ShowDashboard(DashboardViewModel.UpdatesTabIndex));
         AdjustTimeCommand = new RelayCommand(ShowTimeAdjustment);
         ConfirmOverlayCommand = new RelayCommand(() => _overlay.Confirm());
         CancelOverlayCommand = new RelayCommand(() => _overlay.Cancel());
+
+        UpdateService.Instance.PropertyChanged += OnUpdateServicePropertyChanged;
 
         // Validate position - if minimized (-32000) or off-screen, use default position
         var left = _state.Left ?? 100;
@@ -264,9 +267,22 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public ICommand ResetCommand { get; }
     public ICommand SwapCommand { get; }
     public ICommand DashboardCommand { get; }
+    public ICommand OpenUpdatesCommand { get; }
     public ICommand AdjustTimeCommand { get; }
     public ICommand ConfirmOverlayCommand { get; }
     public ICommand CancelOverlayCommand { get; }
+
+    public bool HasUpdate => UpdateService.Instance.State == UpdateState.UpdateReady;
+
+    public string AvailableVersionText => $"v{UpdateService.Instance.AvailableVersion}";
+
+    private void OnUpdateServicePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(UpdateService.State))
+            OnPropertyChanged(nameof(HasUpdate));
+        if (e.PropertyName == nameof(UpdateService.AvailableVersion))
+            OnPropertyChanged(nameof(AvailableVersionText));
+    }
 
     public OverlayViewModel Overlay => _overlay;
 
@@ -496,15 +512,20 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     private Views.DashboardWindow? _dashboard;
 
-    private void ShowDashboard()
+    private void ShowDashboard(int initialTabIndex = 0)
     {
         if (_dashboard != null)
         {
+            if (_dashboard.DataContext is DashboardViewModel existingVm)
+                existingVm.SelectedTabIndex = initialTabIndex;
             _dashboard.Activate();
             return;
         }
 
-        var vm = new DashboardViewModel(_state, _history, RefreshOuterRing);
+        var vm = new DashboardViewModel(_state, _history, RefreshOuterRing)
+        {
+            SelectedTabIndex = initialTabIndex
+        };
         _dashboard = new Views.DashboardWindow { DataContext = vm };
         _dashboard.Closed += (_, _) => _dashboard = null;
 
