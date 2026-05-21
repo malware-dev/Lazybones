@@ -1,5 +1,9 @@
-v.0.1.0
+v.1.0.0
    - First public release of Get Up, Lazybones!
-   - Sit/stand reminder timer with auto-pause on session lock (Windows + macOS).
-   - Dashboard window with stats, achievements, and settings.
-   - Velopack-based auto-update from GitHub Releases.
+   - Sit/stand reminder that lives as a round transparent desktop disk on Windows and macOS.
+   - Layered progress rings track today's standing goal (outer) and the current cycle (inner).
+   - Auto-pauses when you lock your screen and resumes on unlock — pause time is invisible to every metric.
+   - Achievements covering streaks, daily intensity, response engagement, and lifetime volume.
+   - Dashboard with stats, achievements, settings, and an updates tab.
+   - Optional "Start at login" on both platforms (Windows Run key / macOS LaunchAgent).
+   - Auto-update from GitHub Releases via Velopack — new versions show as a blue indicator on the main disk and a dedicated Updates tab.
