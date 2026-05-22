@@ -22,8 +22,7 @@ public partial class MainWindow : Window
         if (DataContext is MainWindowViewModel viewModel)
         {
             Position = new PixelPoint((int)viewModel.WindowPosition.X, (int)viewModel.WindowPosition.Y);
-            
-            // Subscribe to overlay visibility changes to auto-focus time input
+
             viewModel.Overlay.PropertyChanged += (s, args) =>
             {
                 if (args.PropertyName == nameof(OverlayViewModel.IsVisible) &&

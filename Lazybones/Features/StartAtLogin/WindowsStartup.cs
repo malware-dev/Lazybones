@@ -12,6 +12,8 @@ internal sealed class WindowsStartupService : IStartupService
     private const string AppName = "Lazybones";
     private const string LegacyAppName = "StandUp";
 
+    public string LoginItemLabel => "Start with Windows";
+
     public bool IsEnabled
     {
         get
@@ -28,12 +30,12 @@ internal sealed class WindowsStartupService : IStartupService
         }
     }
 
-    public void SetEnabled(bool enabled)
+    public bool SetEnabled(bool enabled)
     {
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
-            if (key == null) return;
+            if (key == null) return false;
 
             // Always remove the legacy "StandUp" Run entry — its EXE path no
             // longer exists after the rename.
@@ -42,17 +44,18 @@ internal sealed class WindowsStartupService : IStartupService
             if (enabled)
             {
                 var path = Environment.ProcessPath;
-                if (string.IsNullOrEmpty(path)) return;
+                if (string.IsNullOrEmpty(path)) return false;
                 key.SetValue(AppName, $"\"{path}\"");
             }
             else
             {
                 key.DeleteValue(AppName, throwOnMissingValue: false);
             }
+            return true;
         }
         catch
         {
-            // Best-effort: registry write can fail under restricted environments.
+            return false;
         }
     }
 }

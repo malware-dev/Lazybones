@@ -12,7 +12,6 @@ public class AppState
     {
         var filePath = GetFilePath();
 
-        // If the file doesn't exist, return a new instance of AppState
         if (!File.Exists(filePath))
             return new AppState();
 
@@ -23,7 +22,9 @@ public class AppState
         }
         catch (Exception)
         {
-            // If there was an error reading the file, return a new instance of AppState
+            // Corrupt or unreadable state.json — start fresh rather than refusing
+            // to launch. Atomic-replace in SaveState ensures the next successful
+            // save restores a valid file.
             return new AppState();
         }
     }

@@ -13,19 +13,12 @@ public class OverlayViewModel : ViewModelBase
     private string _message = string.Empty;
     private OverlayType _overlayType;
     private Action<bool>? _callback;
-    private int _standingTime;
-    private int _sittingTime;
-    private int _dailyGoalMinutes;
-    private bool _startWithWindows;
-    private int _adjustHours;
-    private int _adjustMinutes;
-    private int _adjustSeconds;
+    private TimeSpan _adjustedTime;
     private string _timeInput = string.Empty;
     private TimeSpan _currentTimeForAdjustment;
 
     private readonly Queue<Achievement> _pendingAchievements = new();
     private DispatcherTimer? _toastTimer;
-    private IReadOnlyDictionary<DateOnly, int>? _heatmapData;
 
     public bool IsVisible
     {
@@ -51,46 +44,10 @@ public class OverlayViewModel : ViewModelBase
         private set => SetField(ref _overlayType, value);
     }
 
-    public int StandingTime
+    public TimeSpan AdjustedTime
     {
-        get => _standingTime;
-        set => SetField(ref _standingTime, value);
-    }
-
-    public int SittingTime
-    {
-        get => _sittingTime;
-        set => SetField(ref _sittingTime, value);
-    }
-
-    public int DailyGoalMinutes
-    {
-        get => _dailyGoalMinutes;
-        set => SetField(ref _dailyGoalMinutes, value);
-    }
-
-    public bool StartWithWindows
-    {
-        get => _startWithWindows;
-        set => SetField(ref _startWithWindows, value);
-    }
-
-    public int AdjustHours
-    {
-        get => _adjustHours;
-        private set => SetField(ref _adjustHours, value);
-    }
-
-    public int AdjustMinutes
-    {
-        get => _adjustMinutes;
-        private set => SetField(ref _adjustMinutes, value);
-    }
-
-    public int AdjustSeconds
-    {
-        get => _adjustSeconds;
-        private set => SetField(ref _adjustSeconds, value);
+        get => _adjustedTime;
+        private set => SetField(ref _adjustedTime, value);
     }
 
     public string TimeInput
@@ -104,35 +61,6 @@ public class OverlayViewModel : ViewModelBase
         Title = title;
         Message = message;
         OverlayType = OverlayType.Confirmation;
-        _callback = callback;
-        IsVisible = true;
-    }
-
-    public void ShowSettings(int standingTime, int sittingTime, int dailyGoalMinutes, bool startWithWindows,
-        Action<bool> callback)
-    {
-        Title = "Settings";
-        StandingTime = standingTime;
-        SittingTime = sittingTime;
-        DailyGoalMinutes = dailyGoalMinutes;
-        StartWithWindows = startWithWindows;
-        OverlayType = OverlayType.Settings;
-        _callback = callback;
-        IsVisible = true;
-    }
-
-    public IReadOnlyDictionary<DateOnly, int>? HeatmapData
-    {
-        get => _heatmapData;
-        private set => SetField(ref _heatmapData, value);
-    }
-
-    public void ShowHeatmap(IReadOnlyDictionary<DateOnly, int> data, int dailyGoalMinutes, Action<bool> callback)
-    {
-        Title = "Last 13 weeks";
-        HeatmapData = data;
-        DailyGoalMinutes = dailyGoalMinutes;
-        OverlayType = OverlayType.Heatmap;
         _callback = callback;
         IsVisible = true;
     }
@@ -173,7 +101,7 @@ public class OverlayViewModel : ViewModelBase
 
     private void TryShowNextAchievement()
     {
-        // Don't interrupt a modal overlay (Settings/Confirmation/TimeAdjustment).
+        // Don't interrupt a modal overlay (Confirmation/TimeAdjustment).
         if (IsVisible && OverlayType != OverlayType.AchievementToast) return;
         if (_pendingAchievements.Count == 0)
         {
@@ -210,9 +138,7 @@ public class OverlayViewModel : ViewModelBase
     public void ShowTimeAdjustment(TimeSpan currentTime, Action<bool> callback)
     {
         Title = "Adjust Time";
-        AdjustHours = currentTime.Hours;
-        AdjustMinutes = currentTime.Minutes;
-        AdjustSeconds = currentTime.Seconds;
+        AdjustedTime = currentTime;
         TimeInput = $"{currentTime.Hours:00}:{currentTime.Minutes:00}:{currentTime.Seconds:00}";
         _currentTimeForAdjustment = currentTime;
         OverlayType = OverlayType.TimeAdjustment;
@@ -222,18 +148,14 @@ public class OverlayViewModel : ViewModelBase
 
     public void Confirm()
     {
-        // Validate time adjustment inputs
         if (OverlayType == OverlayType.TimeAdjustment)
         {
             if (!TimeInputParser.TryParse(TimeInput, _currentTimeForAdjustment, out var time))
             {
-                // Invalid input - don't close overlay, just return
                 return;
             }
 
-            AdjustHours = (int)time.TotalHours;
-            AdjustMinutes = time.Minutes;
-            AdjustSeconds = time.Seconds;
+            AdjustedTime = time;
         }
 
         var callback = _callback;
@@ -267,9 +189,7 @@ public enum OverlayType
 {
     None,
     Confirmation,
-    Settings,
     TimeAdjustment,
     AchievementToast,
-    Heatmap,
     IdleResumeToast
 }

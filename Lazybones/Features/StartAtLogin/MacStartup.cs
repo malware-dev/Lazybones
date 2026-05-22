@@ -13,16 +13,18 @@ internal sealed class MacStartupService : IStartupService
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         "Library", "LaunchAgents", $"{Label}.plist");
 
+    public string LoginItemLabel => "Open at login";
+
     public bool IsEnabled => File.Exists(PlistPath);
 
-    public void SetEnabled(bool enabled)
+    public bool SetEnabled(bool enabled)
     {
         try
         {
             if (enabled)
             {
                 var path = Environment.ProcessPath;
-                if (string.IsNullOrEmpty(path)) return;
+                if (string.IsNullOrEmpty(path)) return false;
 
                 Directory.CreateDirectory(Path.GetDirectoryName(PlistPath)!);
                 File.WriteAllText(PlistPath, BuildPlist(path));
@@ -31,10 +33,11 @@ internal sealed class MacStartupService : IStartupService
             {
                 File.Delete(PlistPath);
             }
+            return true;
         }
         catch
         {
-            // Best-effort: writing to ~/Library/LaunchAgents can fail under sandboxing.
+            return false;
         }
     }
 

@@ -21,7 +21,7 @@ public static class StreakCalculator
         if (dailyCycleGoal <= 0) return 0;
 
         var lookback = today.AddDays(-365);
-        var records = history.GetRange(lookback, today.AddDays(1));
+        var records = history.GetRange(lookback, today);
 
         // Count completed standing cycles per day, attributed by StartedAt.
         var cyclesByDay = records

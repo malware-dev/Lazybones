@@ -145,14 +145,16 @@ public class DashboardViewModel : ViewModelBase
         set
         {
             if (_state.StartWithWindows == value) return;
-            _state.StartWithWindows = value;
-            StartupService.Instance.SetEnabled(value);
+            // Persist what the OS actually did, not what the user clicked, so
+            // the toggle reflects reality after restart.
+            var applied = StartupService.Instance.SetEnabled(value) && value;
+            _state.StartWithWindows = applied;
             _state.SaveState();
             OnPropertyChanged(nameof(StartWithWindows));
         }
     }
 
-    public string StartWithOsLabel => StartupService.LoginItemLabel;
+    public string StartWithOsLabel => StartupService.Instance.LoginItemLabel;
 
     public int TodayStandingMinutes => _history.GetTodayStandingMinutes();
     public int TodayStandingCycles => _history.GetTodayStandingCycles();
@@ -196,7 +198,7 @@ public class DashboardViewModel : ViewModelBase
         const int days = 14;
         var today = DateOnly.FromDateTime(DateTime.Now);
         var start = today.AddDays(-(days - 1));
-        var records = _history.GetRange(start, today.AddDays(1));
+        var records = _history.GetRange(start, today);
 
         var result = new int[days];
         foreach (var r in records)

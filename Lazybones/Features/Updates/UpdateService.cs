@@ -114,7 +114,12 @@ public sealed class UpdateService : INotifyPropertyChanged
     /// </summary>
     public bool CanUpdate => _forceCanUpdate || _mgr.IsInstalled;
 
-    public static void CheckInBackground()
+    /// <summary>
+    /// Fire-and-forget background poll. Throttled to BackgroundCheckInterval; safe to
+    /// call from any code path (cycle transitions, app start). Use CheckAsync when you
+    /// need to await the result, e.g. from a manual "Check now" button.
+    /// </summary>
+    public void RequestBackgroundCheck()
     {
         // Dev simulator: set LAZYBONES_FAKE_UPDATE=<version> to populate the
         // UI as if a real update were ready, without needing a Velopack install.
@@ -122,19 +127,15 @@ public sealed class UpdateService : INotifyPropertyChanged
         var fakeVersion = Environment.GetEnvironmentVariable("LAZYBONES_FAKE_UPDATE");
         if (!string.IsNullOrWhiteSpace(fakeVersion))
         {
-            _ = Task.Run(() => Instance.SimulateUpdateReadyAsync(fakeVersion!.Trim()));
+            _ = Task.Run(() => SimulateUpdateReadyAsync(fakeVersion!.Trim()));
             return;
         }
 
-        // Throttle background checks. Without this, every cycle-state change
-        // would hit GitHub — fine in normal use (cycles are 60+ minutes apart)
-        // but spammy if the user mashes Swap. Manual checks via the dashboard
-        // bypass this gate by calling CheckAsync directly.
         var now = DateTime.UtcNow;
-        if (now - Instance._lastBackgroundCheck < BackgroundCheckInterval) return;
-        Instance._lastBackgroundCheck = now;
+        if (now - _lastBackgroundCheck < BackgroundCheckInterval) return;
+        _lastBackgroundCheck = now;
 
-        _ = Task.Run(() => Instance.CheckAsync());
+        _ = Task.Run(CheckAsync);
     }
 
     private async Task SimulateUpdateReadyAsync(string fakeVersion)
@@ -157,6 +158,10 @@ public sealed class UpdateService : INotifyPropertyChanged
         State = UpdateState.UpdateReady;
     }
 
+    /// <summary>
+    /// Awaitable update check. Use for manual "Check now" UI — bypasses the
+    /// background throttle and the caller observes the result via State/AvailableVersion.
+    /// </summary>
     public async Task CheckAsync()
     {
         if (!_mgr.IsInstalled) return;

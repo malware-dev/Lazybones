@@ -5,15 +5,19 @@ namespace Lazybones.Features.StartAtLogin;
 public interface IStartupService
 {
     bool IsEnabled { get; }
-    void SetEnabled(bool enabled);
+    string LoginItemLabel { get; }
+
+    /// <summary>
+    /// Attempts to enable or disable launch-at-login. Returns true on success, false if the
+    /// underlying OS write failed (e.g. registry access denied, sandboxed filesystem).
+    /// Callers should re-read IsEnabled before persisting their own state.
+    /// </summary>
+    bool SetEnabled(bool enabled);
 }
 
 public static class StartupService
 {
     public static IStartupService Instance { get; } = Create();
-
-    public static string LoginItemLabel =>
-        OperatingSystem.IsMacOS() ? "Open at login" : "Start with Windows";
 
     private static IStartupService Create()
     {
@@ -34,5 +38,6 @@ public static class StartupService
 internal sealed class NoOpStartupService : IStartupService
 {
     public bool IsEnabled => false;
-    public void SetEnabled(bool enabled) { }
+    public bool SetEnabled(bool enabled) => false;
+    public string LoginItemLabel => "Start at login";
 }

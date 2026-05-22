@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -62,7 +63,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _triggerInFlight;
     private DateTime _cycleStartedAt;
     private int _cyclePlannedSeconds;
-    // Wall-clock time at which the most recent Trigger() fired (= when the
+    // Wall-clock time at which the most recent TriggerAsync() fired (= when the
     // timer actually hit zero). Used to measure dialog response time without
     // counting any pre-trigger pause window.
     private DateTime _lastTriggerFiredAt;
@@ -149,7 +150,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         // cycle), every natural trigger, manual Swap, and Reset — i.e., every
         // moment the user is actively engaging with the app. UpdateService
         // throttles repeated calls so a Swap-mashing user can't spam GitHub.
-        UpdateService.CheckInBackground();
+        UpdateService.Instance.RequestBackgroundCheck();
     }
 
     private void RecordCurrentCycle(CycleOutcome outcome, bool promptDismissed = false)
@@ -260,13 +261,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private void PromptStartWithWindows()
     {
         _overlay.ShowConfirmation(
-            $"{StartupService.LoginItemLabel}?",
+            $"{StartupService.Instance.LoginItemLabel}?",
             "Would you like Get Up, Lazybones! to start automatically when you log in?",
             result =>
             {
                 _state.HasAskedAboutStartup = true;
-                _state.StartWithWindows = result;
-                StartupService.Instance.SetEnabled(result);
+                _state.StartWithWindows = StartupService.Instance.SetEnabled(result) && result;
                 _state.SaveState();
             });
     }
@@ -419,7 +419,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             StandUp();
     }
 
-    private async void Trigger()
+    private async Task TriggerAsync()
     {
         // Re-entrancy guard: a slow dialog open shouldn't allow a second
         // Trigger to fire from a stale Time<=0 condition.
@@ -479,8 +479,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private bool _disposed;
+
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _timer.Stop();
         _presence.Locked -= OnScreenLocked;
         _presence.Unlocked -= OnScreenUnlocked;
@@ -557,7 +562,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         {
             if (result)
             {
-                Time = new TimeSpan(_overlay.AdjustHours, _overlay.AdjustMinutes, _overlay.AdjustSeconds);
+                Time = _overlay.AdjustedTime;
                 ResetStopwatch();
             }
         });
@@ -588,7 +593,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         Time -= _stopwatch.Elapsed;
         _stopwatch.Restart();
         RefreshInnerRing();
-        if (Time <= TimeSpan.Zero) Trigger();
+        if (Time <= TimeSpan.Zero) _ = TriggerAsync();
     }
 
     private void OnScreenLocked(object? sender, EventArgs e)
