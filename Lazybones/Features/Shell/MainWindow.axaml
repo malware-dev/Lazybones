@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:behaviors="clr-namespace:Lazybones.Core.Behaviors"
-        xmlns:controls="clr-namespace:Lazybones.Features.Shell"
+        xmlns:controls="clr-namespace:Lazybones.Features.Stats"
         mc:Ignorable="d" d:DesignWidth="260" d:DesignHeight="260"
         x:Class="Lazybones.Features.Shell.MainWindow"
         x:DataType="vm:MainWindowViewModel"

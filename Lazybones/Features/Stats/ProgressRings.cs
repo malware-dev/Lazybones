@@ -3,7 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 
-namespace Lazybones.Features.Shell;
+namespace Lazybones.Features.Stats;
 
 public class ProgressRings : Control
 {

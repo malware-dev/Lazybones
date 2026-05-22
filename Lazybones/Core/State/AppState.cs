@@ -4,7 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Lazybones.Features.Shell;
+namespace Lazybones.Core.State;
 
 public class AppState
 {

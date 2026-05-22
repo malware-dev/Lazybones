@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using Lazybones.Core.Mvvm;
+using Lazybones.Core.State;
 using Lazybones.Features.Achievements;
 using Lazybones.Features.Dashboard;
 using Lazybones.Features.History;

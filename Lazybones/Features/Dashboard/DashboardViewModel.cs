@@ -6,7 +6,7 @@ using System.Windows.Input;
 using Lazybones.Core.Mvvm;
 using Lazybones.Features.Achievements;
 using Lazybones.Features.History;
-using Lazybones.Features.Shell;
+using Lazybones.Core.State;
 using Lazybones.Features.StartAtLogin;
 using Lazybones.Features.Updates;
 
