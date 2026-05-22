@@ -19,7 +19,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows10.0.17763.0'">
+    <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows10.0.17763.0'">
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <ApplicationIcon>Assets\appicon.ico</ApplicationIcon>
     </PropertyGroup>
@@ -34,7 +34,8 @@
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     </PropertyGroup>
 
-    <!-- macOS .app bundle metadata, used by Dotnet.Bundle's BundleApp target. -->
+    <!-- macOS .app bundle metadata. Velopack's vpk pack reads CFBundleName /
+         CFBundleIdentifier when assembling the .app on macOS releases. -->
     <PropertyGroup>
         <CFBundleName>Get Up, Lazybones!</CFBundleName>
         <CFBundleDisplayName>Get Up, Lazybones!</CFBundleDisplayName>
@@ -55,8 +56,10 @@
         <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.3" />
         <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.3" />
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.3.15" />
-        <PackageReference Include="Dotnet.Bundle" Version="0.9.13" />
+        <!-- Diagnostics is Debug-only and intentionally lags the main Avalonia 12.x
+             stack — there is no 12.x release of Avalonia.Diagnostics on NuGet yet,
+             so this stays on the 11.x line. Revisit when 12.x ships. -->
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.3.16" />
         <!-- Used by WindowsUserPresenceMonitor for SessionSwitch events.
              Cross-platform package but only invoked on Windows. -->
         <PackageReference Include="Microsoft.Win32.SystemEvents" Version="9.0.0" />

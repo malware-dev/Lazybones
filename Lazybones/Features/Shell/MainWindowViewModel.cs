@@ -84,8 +84,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _state = AppState.LoadState();
 
         PlayPauseCommand = new RelayCommand(PlayPause);
-        ResetCommand = new RelayCommand(TryReset);
-        SwapCommand = new RelayCommand(TryToggle);
+        ResetCommand = new RelayCommand(ConfirmReset);
+        SwapCommand = new RelayCommand(ConfirmToggle);
         DashboardCommand = new RelayCommand(() => ShowDashboard());
         OpenUpdatesCommand = new RelayCommand(() => ShowDashboard(DashboardViewModel.UpdatesTabIndex));
         AdjustTimeCommand = new RelayCommand(ShowTimeAdjustment);
@@ -109,8 +109,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         // Set text based on mode
         Text = IsStanding
-            ? StandUpNowTexts[Random.Shared.Next(StandUpNowTexts.Length)]
-            : YouCanSitNowTexts[Random.Shared.Next(YouCanSitNowTexts.Length)];
+            ? PickRandom(StandUpNowTexts)
+            : PickRandom(YouCanSitNowTexts);
 
         // Restore timer from saved state, or use defaults
         if (_state.ElapsedTimeInSeconds > 0)
@@ -369,8 +369,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         // next tick.
         _stopwatch.Restart();
         Text = IsStanding
-            ? StandUpNowTexts[Random.Shared.Next(StandUpNowTexts.Length)]
-            : YouCanSitNowTexts[Random.Shared.Next(YouCanSitNowTexts.Length)];
+            ? PickRandom(StandUpNowTexts)
+            : PickRandom(YouCanSitNowTexts);
         IsRunning = true;
     }
 
@@ -396,7 +396,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void StandUp()
     {
-        Text = StandUpNowTexts[Random.Shared.Next(StandUpNowTexts.Length)];
+        Text = PickRandom(StandUpNowTexts);
         Time = TimeSpan.FromMinutes(_state.StandingTimeInMinutes);
         ResetStopwatch();
         IsStanding = true;
@@ -405,7 +405,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void SitDown()
     {
-        Text = YouCanSitNowTexts[Random.Shared.Next(YouCanSitNowTexts.Length)];
+        Text = PickRandom(YouCanSitNowTexts);
         Time = TimeSpan.FromMinutes(_state.SittingTimeInMinutes);
         ResetStopwatch();
         IsStanding = false;
@@ -419,6 +419,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         else
             StandUp();
     }
+
+    private static string PickRandom(string[] pool) => pool[Random.Shared.Next(pool.Length)];
 
     private async Task TriggerAsync()
     {
@@ -437,8 +439,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
             var dialog = new ModeSwitchDialog();
             var randomText = IsStanding
-                ? YouCanSitNowTexts[Random.Shared.Next(YouCanSitNowTexts.Length)]
-                : StandUpNowTexts[Random.Shared.Next(StandUpNowTexts.Length)];
+                ? PickRandom(YouCanSitNowTexts)
+                : PickRandom(StandUpNowTexts);
             dialog.SetMessage(randomText);
 
             var mainWindow = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
@@ -500,7 +502,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _state.SaveState();
     }
 
-    private void TryToggle()
+    private void ConfirmToggle()
     {
         var message = IsStanding
             ? "Swap to sitting?"
@@ -514,7 +516,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void TryReset()
+    private void ConfirmReset()
     {
         _overlay.ShowConfirmation("Reset", "Reset the timer?", result =>
         {
