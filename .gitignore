@@ -39,3 +39,6 @@ desktop.ini
 
 # Claude Code (per-machine permissions, never commit)
 .claude/settings.local.json
+
+# Desloppify (local code-health state)
+.desloppify/

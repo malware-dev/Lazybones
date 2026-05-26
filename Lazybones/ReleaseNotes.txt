@@ -1,3 +1,17 @@
+v.1.0.3
+   - Resilience: failed saves of state.json and history.jsonl no longer crash the app. A transient permission error or full disk is logged and ignored; the in-memory state remains authoritative and the next successful save catches up.
+   - Dashboard window no longer leaks memory when opened and closed repeatedly — the dashboard ViewModel now properly unsubscribes from the update-checker on close.
+   - macOS: the launch-at-login identifier is now dev.malforge.lazybones (was com.malforge.standup, a leftover from the project's original name). If you had Start at login enabled, the old LaunchAgent is cleaned up automatically the next time you toggle the setting.
+   - Internal: a Lazybones.Tests project with 97 unit tests now ships alongside the app and runs in CI, gating releases. Covered units: TimeInputParser, StreakCalculator, HistoryStore, AchievementRules, AppState (including the StandUp→Lazybones data-directory migration), and the MVVM base classes.
+   - Internal: substantial cleanup pass — dead code removed, error handling tightened to typed catches, lock consistency restored across HistoryStore reads, app-state persistence moved out of Features/Shell to Core/State to dissolve a 7-file import cycle, and macOS bundle id renamed for identity consistency.
+
+v.1.0.2
+   - Background update checks now run on every sit/stand cycle start (throttled to at most once per 30 minutes), so long-running sessions pick up new releases without restarting the app.
+   - The daily goal is now a number of completed standing cycles rather than a number of standing minutes. The settings field reads "Daily standing cycles"; the outer ring and Today stat show cycle progress (with the minutes-stood-today shown as a secondary number). A cycle only counts if it ran to natural completion — bailing out via Swap doesn't count toward the goal, though the time you did spend standing is still tracked.
+   - Streak follows the new cycle goal: a streak day is an active day that hit the cycle count. Days where the screen was locked all day or the app was paused are "paused" — neither hit nor miss. No mid-day instant-loss action; the streak fails at end-of-day if an active day finishes below the goal.
+   - Old saved settings using the previous minutes-based goal are ignored; the new daily-cycle goal starts at its default. Lifetime achievements remain minutes-honest.
+   - Stats tab: the 13-week minutes heatmap is now half-width, balanced by a new 14-day cycles-per-day bar chart on the right. The main-disk dashboard button switched from a cog to a stats glyph so the contents are less hidden.
+
 v.1.0.1
    - Added an Updates tab to the dashboard showing the running version, status, release notes for any new version, and Check-for-updates / Restart-now buttons.
    - New blue indicator below the clock on the main disk when an update is ready — click to jump to the Updates tab.
