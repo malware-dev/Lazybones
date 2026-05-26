@@ -39,7 +39,7 @@
     <PropertyGroup>
         <CFBundleName>Get Up, Lazybones!</CFBundleName>
         <CFBundleDisplayName>Get Up, Lazybones!</CFBundleDisplayName>
-        <CFBundleIdentifier>com.malforge.standup</CFBundleIdentifier>
+        <CFBundleIdentifier>com.malforge.lazybones</CFBundleIdentifier>
         <CFBundleVersion>1.0.0</CFBundleVersion>
         <CFBundleShortVersionString>1.0</CFBundleShortVersionString>
         <CFBundlePackageType>APPL</CFBundlePackageType>

@@ -7,26 +7,35 @@ namespace Lazybones.Features.StartAtLogin;
 [SupportedOSPlatform("macos")]
 internal sealed class MacStartupService : IStartupService
 {
-    private const string Label = "com.malforge.standup";
+    private const string Label = "com.malforge.lazybones";
+    private const string LegacyLabel = "com.malforge.standup";
 
-    private static readonly string PlistPath = Path.Combine(
+    private static readonly string LaunchAgentsDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        "Library", "LaunchAgents", $"{Label}.plist");
+        "Library", "LaunchAgents");
+
+    private static readonly string PlistPath = Path.Combine(LaunchAgentsDir, $"{Label}.plist");
+    private static readonly string LegacyPlistPath = Path.Combine(LaunchAgentsDir, $"{LegacyLabel}.plist");
 
     public string LoginItemLabel => "Open at login";
 
-    public bool IsEnabled => File.Exists(PlistPath);
+    public bool IsEnabled => File.Exists(PlistPath) || File.Exists(LegacyPlistPath);
 
     public bool SetEnabled(bool enabled)
     {
         try
         {
+            // Always remove the legacy "com.malforge.standup" plist — its
+            // identifier doesn't match the bundle id of the current build.
+            if (File.Exists(LegacyPlistPath))
+                File.Delete(LegacyPlistPath);
+
             if (enabled)
             {
                 var path = Environment.ProcessPath;
                 if (string.IsNullOrEmpty(path)) return false;
 
-                Directory.CreateDirectory(Path.GetDirectoryName(PlistPath)!);
+                Directory.CreateDirectory(LaunchAgentsDir);
                 File.WriteAllText(PlistPath, BuildPlist(path));
             }
             else if (File.Exists(PlistPath))
