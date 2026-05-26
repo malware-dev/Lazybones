@@ -23,7 +23,7 @@ internal sealed class WindowsStartupService : IStartupService
                 using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: false);
                 return key?.GetValue(AppName) != null;
             }
-            catch
+            catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or System.IO.IOException)
             {
                 return false;
             }
@@ -53,7 +53,7 @@ internal sealed class WindowsStartupService : IStartupService
             }
             return true;
         }
-        catch
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or System.IO.IOException)
         {
             return false;
         }

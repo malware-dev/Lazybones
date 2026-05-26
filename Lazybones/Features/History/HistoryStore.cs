@@ -24,29 +24,44 @@ public sealed class HistoryStore : IHistoryStore
     {
         lock (_lock)
         {
-            var json = JsonSerializer.Serialize(record, CycleRecordJsonContext.Default.CycleRecord);
-            Directory.CreateDirectory(Path.GetDirectoryName(_filePath) ?? string.Empty);
-            File.AppendAllText(_filePath, json + Environment.NewLine);
-            _cache?.Add(record);
+            try
+            {
+                var json = JsonSerializer.Serialize(record, CycleRecordJsonContext.Default.CycleRecord);
+                Directory.CreateDirectory(Path.GetDirectoryName(_filePath) ?? string.Empty);
+                File.AppendAllText(_filePath, json + Environment.NewLine);
+                _cache?.Add(record);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Best-effort: losing one cycle record is preferable to crashing
+                // the app on a transient I/O issue. The in-memory cache is left
+                // unchanged so the next successful append will be consistent.
+            }
         }
     }
 
     public IReadOnlyList<CycleRecord> GetDay(DateOnly date)
     {
-        return LoadAll()
-            .Where(r => DateOnly.FromDateTime(r.EndedAt) == date)
-            .ToList();
+        lock (_lock)
+        {
+            return LoadAll()
+                .Where(r => DateOnly.FromDateTime(r.EndedAt) == date)
+                .ToList();
+        }
     }
 
     public IReadOnlyList<CycleRecord> GetRange(DateOnly from, DateOnly to)
     {
-        return LoadAll()
-            .Where(r =>
-            {
-                var d = DateOnly.FromDateTime(r.EndedAt);
-                return d >= from && d <= to;
-            })
-            .ToList();
+        lock (_lock)
+        {
+            return LoadAll()
+                .Where(r =>
+                {
+                    var d = DateOnly.FromDateTime(r.EndedAt);
+                    return d >= from && d <= to;
+                })
+                .ToList();
+        }
     }
 
     public IReadOnlyList<CycleRecord> GetAll()
@@ -57,26 +72,26 @@ public sealed class HistoryStore : IHistoryStore
         }
     }
 
-    public int GetTodayStandingMinutes()
+    public int StandingMinutesOn(DateOnly day)
     {
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        var seconds = LoadAll()
-            .Where(r => r.WasStanding && DateOnly.FromDateTime(r.EndedAt) == today)
-            .Sum(r => r.ActualDurationSeconds);
-        return seconds / 60;
+        lock (_lock)
+        {
+            var seconds = LoadAll()
+                .Where(r => r.WasStanding && DateOnly.FromDateTime(r.EndedAt) == day)
+                .Sum(r => r.ActualDurationSeconds);
+            return seconds / 60;
+        }
     }
 
-    public int GetTodayStandingCycles()
+    public int CompletedStandingCyclesOn(DateOnly day)
     {
-        // Count of standing cycles that ran to natural completion today, dated
-        // by when the cycle STARTED. A standing cycle that began at 11:55 PM
-        // and finished at 12:25 AM is attributed to the day it started — when
-        // the user committed to standing is what counts toward the goal.
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        return LoadAll()
-            .Count(r => r.WasStanding
-                        && r.Outcome == CycleOutcome.CompletedNaturally
-                        && DateOnly.FromDateTime(r.StartedAt) == today);
+        lock (_lock)
+        {
+            return LoadAll()
+                .Count(r => r.WasStanding
+                            && r.Outcome == CycleOutcome.CompletedNaturally
+                            && DateOnly.FromDateTime(r.StartedAt) == day);
+        }
     }
 
     private List<CycleRecord> LoadAll()
@@ -100,9 +115,11 @@ public sealed class HistoryStore : IHistoryStore
                     var record = JsonSerializer.Deserialize(line, CycleRecordJsonContext.Default.CycleRecord);
                     if (record != null) list.Add(record);
                 }
-                catch
+                catch (JsonException)
                 {
-                    // Skip corrupt lines rather than refusing to load the whole file.
+                    // Skip malformed JSON lines rather than refusing to load the whole file.
+                    // Disk or permission errors at File.ReadAllLines bubble up; we only
+                    // tolerate per-record corruption here.
                 }
             }
 

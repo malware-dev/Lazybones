@@ -216,7 +216,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private void RefreshOuterRing()
     {
         var goal = Math.Max(1, _state.DailyCycleGoal);
-        OuterRingProgress = Math.Min(1.0, (double)_history.GetTodayStandingCycles() / goal);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        OuterRingProgress = Math.Min(1.0, (double)_history.CompletedStandingCyclesOn(today) / goal);
     }
 
     private void RefreshStreak()
@@ -493,6 +494,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _presence.Locked -= OnScreenLocked;
         _presence.Unlocked -= OnScreenUnlocked;
         _presence.Dispose();
+        UpdateService.Instance.PropertyChanged -= OnUpdateServicePropertyChanged;
 
         _state.Left = (int)WindowPosition.X;
         _state.Top = (int)WindowPosition.Y;

@@ -151,35 +151,24 @@ public class OverlayViewModel : ViewModelBase
         if (OverlayType == OverlayType.TimeAdjustment)
         {
             if (!TimeInputParser.TryParse(TimeInput, _currentTimeForAdjustment, out var time))
-            {
                 return;
-            }
 
             AdjustedTime = time;
         }
 
-        var callback = _callback;
-        _callback = null;
-        IsVisible = false;
-
-        if (callback != null)
-        {
-            Dispatcher.UIThread.Post(() => callback(true));
-        }
-
-        Dispatcher.UIThread.Post(TryShowNextAchievement, DispatcherPriority.Background);
+        Dismiss(accepted: true);
     }
 
-    public void Cancel()
+    public void Cancel() => Dismiss(accepted: false);
+
+    private void Dismiss(bool accepted)
     {
         var callback = _callback;
         _callback = null;
         IsVisible = false;
 
         if (callback != null)
-        {
-            Dispatcher.UIThread.Post(() => callback(false));
-        }
+            Dispatcher.UIThread.Post(() => callback(accepted));
 
         Dispatcher.UIThread.Post(TryShowNextAchievement, DispatcherPriority.Background);
     }

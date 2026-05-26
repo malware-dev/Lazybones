@@ -12,11 +12,13 @@ public class ViewModelBase : INotifyPropertyChanged
     {
         if (EqualityComparer<T>.Default.Equals(field, value)) return false;
         field = value;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        RaisePropertyChanged(propertyName);
         return true;
     }
 
-    protected void OnPropertyChanged(string propertyName)
+    protected void OnPropertyChanged(string propertyName) => RaisePropertyChanged(propertyName);
+
+    protected virtual void RaisePropertyChanged(string? propertyName)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }

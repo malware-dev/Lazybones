@@ -1,12 +1,10 @@
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Net.Http;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using Lazybones.Core.Mvvm;
 using Velopack;
 using Velopack.Sources;
 
@@ -27,7 +25,7 @@ public enum UpdateState
 /// All PropertyChanged events are marshalled to the UI thread so background
 /// update checks don't break bindings.
 /// </summary>
-public sealed class UpdateService : INotifyPropertyChanged
+public sealed class UpdateService : ViewModelBase
 {
     public static UpdateService Instance { get; } = new();
 
@@ -74,8 +72,6 @@ public sealed class UpdateService : INotifyPropertyChanged
             .Split('+')[0];
         _currentVersion = _mgr.CurrentVersion?.ToString() ?? informational ?? "0.0.0";
     }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
 
     public UpdateState State
     {
@@ -161,6 +157,8 @@ public sealed class UpdateService : INotifyPropertyChanged
     /// <summary>
     /// Awaitable update check. Use for manual "Check now" UI — bypasses the
     /// background throttle and the caller observes the result via State/AvailableVersion.
+    /// No-ops on dev/local-publish builds where Velopack is not installed (CanUpdate=false);
+    /// State remains Idle in that case and the UI shows the explanatory dev-build message.
     /// </summary>
     public async Task CheckAsync()
     {
@@ -211,7 +209,7 @@ public sealed class UpdateService : INotifyPropertyChanged
             if (doc.RootElement.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String)
                 ReleaseNotesMarkdown = body.GetString();
         }
-        catch
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or System.Threading.Tasks.TaskCanceledException)
         {
             // Best-effort — the tab falls back to "Release notes unavailable".
         }
@@ -220,6 +218,8 @@ public sealed class UpdateService : INotifyPropertyChanged
     /// <summary>
     /// Applies the downloaded update and restarts the app. Returns synchronously
     /// once Velopack has been told to take over; the process exits shortly after.
+    /// No-ops if no update has been downloaded yet (call CheckAsync or
+    /// RequestBackgroundCheck first; State must be UpdateReady).
     /// </summary>
     public void ApplyAndRestart()
     {
@@ -227,21 +227,11 @@ public sealed class UpdateService : INotifyPropertyChanged
         _mgr.ApplyUpdatesAndRestart(_pendingUpdate);
     }
 
-    private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    protected override void RaisePropertyChanged(string? propertyName)
     {
-        if (EqualityComparer<T>.Default.Equals(field, value)) return;
-        field = value;
-        RaisePropertyChanged(propertyName);
-    }
-
-    private void RaisePropertyChanged(string? propertyName)
-    {
-        var handler = PropertyChanged;
-        if (handler is null) return;
-        var args = new PropertyChangedEventArgs(propertyName);
         if (Dispatcher.UIThread.CheckAccess())
-            handler.Invoke(this, args);
+            base.RaisePropertyChanged(propertyName);
         else
-            Dispatcher.UIThread.Post(() => handler.Invoke(this, args));
+            Dispatcher.UIThread.Post(() => base.RaisePropertyChanged(propertyName));
     }
 }

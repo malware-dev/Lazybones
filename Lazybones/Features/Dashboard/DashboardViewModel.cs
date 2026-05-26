@@ -12,8 +12,10 @@ using Lazybones.Features.Updates;
 
 namespace Lazybones.Features.Dashboard;
 
-public class DashboardViewModel : ViewModelBase
+public class DashboardViewModel : ViewModelBase, IDisposable
 {
+    private bool _disposed;
+
     public const int UpdatesTabIndex = 3;
 
     private readonly AppState _state;
@@ -39,6 +41,13 @@ public class DashboardViewModel : ViewModelBase
         RestartNowCommand = new RelayCommand(_updates.ApplyAndRestart);
 
         _updates.PropertyChanged += OnUpdateServicePropertyChanged;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _updates.PropertyChanged -= OnUpdateServicePropertyChanged;
     }
 
     public int SelectedTabIndex
@@ -156,8 +165,8 @@ public class DashboardViewModel : ViewModelBase
 
     public string StartWithOsLabel => StartupService.Instance.LoginItemLabel;
 
-    public int TodayStandingMinutes => _history.GetTodayStandingMinutes();
-    public int TodayStandingCycles => _history.GetTodayStandingCycles();
+    public int TodayStandingMinutes => _history.StandingMinutesOn(DateOnly.FromDateTime(DateTime.Now));
+    public int TodayStandingCycles => _history.CompletedStandingCyclesOn(DateOnly.FromDateTime(DateTime.Now));
 
     public string TodayProgressText => $"{TodayStandingCycles} / {DailyCycleGoal} cycles";
     public string TodayMinutesText => $"{TodayStandingMinutes} min stood";

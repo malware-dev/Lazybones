@@ -10,7 +10,9 @@ public interface IStartupService
     /// <summary>
     /// Attempts to enable or disable launch-at-login. Returns true on success, false if the
     /// underlying OS write failed (e.g. registry access denied, sandboxed filesystem).
-    /// Callers should re-read IsEnabled before persisting their own state.
+    /// On false, the caller should treat the persisted state as "not enabled" — the existing
+    /// callers (DashboardViewModel.StartWithWindows setter, MainWindowViewModel.PromptStartWithWindows)
+    /// use the (SetEnabled(value) && value) pattern to enforce this.
     /// </summary>
     bool SetEnabled(bool enabled);
 }

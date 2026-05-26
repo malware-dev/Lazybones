@@ -74,13 +74,13 @@ public class ProgressRings : Control
 
         if (value <= 0) return;
 
-        var fillPen = new Pen(fillBrush, thickness, lineCap: PenLineCap.Round);
-
         if (value >= 1.0 - 1e-6)
         {
             context.DrawEllipse(null, new Pen(fillBrush, thickness), center, radius, radius);
             return;
         }
+
+        var fillPen = new Pen(fillBrush, thickness, lineCap: PenLineCap.Round);
 
         const double startAngle = -Math.PI / 2;
         var sweep = 2 * Math.PI * value;

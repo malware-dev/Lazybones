@@ -20,7 +20,7 @@ public class AppState
             var json = File.ReadAllText(filePath);
             return JsonSerializer.Deserialize(json, AppStateJsonContext.Default.AppState) ?? new AppState();
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
         {
             // Corrupt or unreadable state.json — start fresh rather than refusing
             // to launch. Atomic-replace in SaveState ensures the next successful
@@ -48,17 +48,26 @@ public class AppState
     public void SaveState()
     {
         var filePath = GetFilePath();
-        Directory.CreateDirectory(Path.GetDirectoryName(filePath) ?? string.Empty);
-        var json = JsonSerializer.Serialize(this, AppStateJsonContext.Default.AppState);
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath) ?? string.Empty);
+            var json = JsonSerializer.Serialize(this, AppStateJsonContext.Default.AppState);
 
-        // Write to a temp file then atomically replace, so a crash mid-write
-        // can't leave a half-written state.json that fails to deserialize.
-        var tempPath = filePath + ".tmp";
-        File.WriteAllText(tempPath, json);
-        if (File.Exists(filePath))
-            File.Replace(tempPath, filePath, destinationBackupFileName: null);
-        else
-            File.Move(tempPath, filePath);
+            // Write to a temp file then atomically replace, so a crash mid-write
+            // can't leave a half-written state.json that fails to deserialize.
+            var tempPath = filePath + ".tmp";
+            File.WriteAllText(tempPath, json);
+            if (File.Exists(filePath))
+                File.Replace(tempPath, filePath, destinationBackupFileName: null);
+            else
+                File.Move(tempPath, filePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best-effort: a failed save on tick or shutdown shouldn't crash the
+            // app. The next successful save will catch up; in the meantime the
+            // in-memory state is still authoritative for the running session.
+        }
     }
 
     private static string GetFilePath()
@@ -66,7 +75,10 @@ public class AppState
         return Path.Combine(GetDataDir(), "state.json");
     }
 
-    internal static string GetDataDir()
+    private static readonly Lazy<string> _dataDir = new(ResolveDataDir);
+    internal static string GetDataDir() => _dataDir.Value;
+
+    private static string ResolveDataDir()
     {
         var custom = Environment.GetEnvironmentVariable("LAZYBONES_DATA_DIR");
         if (!string.IsNullOrEmpty(custom)) return custom;
@@ -75,9 +87,9 @@ public class AppState
         var newDir = Path.Combine(appData, "Malforge", "Lazybones");
         var oldDir = Path.Combine(appData, "Malforge", "StandUp");
 
-        // One-time migration from the project's previous name. If the new
-        // folder doesn't exist yet but the old one does, move it. After this
-        // succeeds once, subsequent runs ignore the old path entirely.
+        // One-time migration from the project's previous name. Lazy<T>'s
+        // initializer fires exactly once per process under a lock, so the
+        // Directory.Move can't race with itself across threads.
         if (!Directory.Exists(newDir) && Directory.Exists(oldDir))
         {
             try
@@ -85,11 +97,11 @@ public class AppState
                 Directory.CreateDirectory(Path.GetDirectoryName(newDir) ?? string.Empty);
                 Directory.Move(oldDir, newDir);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // If the move fails (e.g. permissions, file locked) fall back
-                // to the old location so the user doesn't lose access to their
-                // history. The next launch will try again.
+                // If the move fails (permissions, file locked) fall back to the
+                // old location so the user doesn't lose access to their history.
+                // The next launch will try again.
                 return oldDir;
             }
         }

@@ -116,10 +116,10 @@ public static class AchievementRules
         public int CurrentStreak => _currentStreak ??= StreakCalculator.CalculateCurrent(History, DailyCycleGoal, Today);
 
         private int? _todayStandingMinutes;
-        public int TodayStandingMinutes => _todayStandingMinutes ??= History.GetTodayStandingMinutes();
+        public int TodayStandingMinutes => _todayStandingMinutes ??= History.StandingMinutesOn(Today);
 
         private int? _todayStandingCycles;
-        public int TodayStandingCycles => _todayStandingCycles ??= History.GetTodayStandingCycles();
+        public int TodayStandingCycles => _todayStandingCycles ??= History.CompletedStandingCyclesOn(Today);
 
         private int? _todayCycleCount;
         public int TodayCycleCount => _todayCycleCount ??=

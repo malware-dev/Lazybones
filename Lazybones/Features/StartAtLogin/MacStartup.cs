@@ -35,7 +35,7 @@ internal sealed class MacStartupService : IStartupService
             }
             return true;
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return false;
         }
