@@ -37,7 +37,11 @@ public static class AchievementRules
     private static bool Qualifies(string id, EvalContext c)
     {
         var record = c.Record;
-        var natural = record.Outcome == CycleOutcome.CompletedNaturally;
+        // A user-edited clock means the recorded duration is a lie — gate every
+        // cycle-derived predicate here so tainted records can't unlock anything.
+        // Lifetime/aggregate paths filter at the EvalContext level.
+        var untouched = !record.WasTimeEdited;
+        var natural = untouched && record.Outcome == CycleOutcome.CompletedNaturally;
         var standingNatural = record.WasStanding && natural;
         var engaged = record.ResponseDelaySeconds <= EngagementResponseWindowSeconds;
         var standingNaturalEngaged = standingNatural && engaged;
@@ -121,19 +125,22 @@ public static class AchievementRules
         private int? _todayStandingCycles;
         public int TodayStandingCycles => _todayStandingCycles ??= History.CompletedStandingCyclesOn(Today);
 
+        // Achievement counts exclude WasTimeEdited records — a tainted cycle
+        // never contributes toward any achievement, daily-goal count, or
+        // lifetime total.
         private int? _todayCycleCount;
         public int TodayCycleCount => _todayCycleCount ??=
-            History.GetDay(Today).Count(r => r.WasStanding && r.Outcome != CycleOutcome.Reset);
+            History.GetDay(Today).Count(r => r.WasStanding && r.Outcome != CycleOutcome.Reset && !r.WasTimeEdited);
 
         private IReadOnlyList<CycleRecord>? _allRecords;
         private IReadOnlyList<CycleRecord> AllRecords => _allRecords ??= History.GetAll();
 
         private int? _lifetimeStandingCycles;
         public int LifetimeStandingCycles => _lifetimeStandingCycles ??=
-            AllRecords.Count(r => r.WasStanding && r.Outcome != CycleOutcome.Reset);
+            AllRecords.Count(r => r.WasStanding && r.Outcome != CycleOutcome.Reset && !r.WasTimeEdited);
 
         private int? _lifetimeStandingMinutes;
         public int LifetimeStandingMinutes => _lifetimeStandingMinutes ??=
-            AllRecords.Where(r => r.WasStanding).Sum(r => r.ActualDurationSeconds) / 60;
+            AllRecords.Where(r => r.WasStanding && !r.WasTimeEdited).Sum(r => r.ActualDurationSeconds) / 60;
     }
 }

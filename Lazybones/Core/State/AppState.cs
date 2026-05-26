@@ -47,6 +47,14 @@ public class AppState
     public bool StartWithWindows { get; set; }
     public List<string> UnlockedAchievementIds { get; set; } = new();
 
+    // In-flight cycle metadata, persisted across restarts so close-and-reopen
+    // mid-cycle preserves the cycle's identity. Without these, restart resets
+    // _cycleStartedAt to "now" (corrupting EarlyBird/NightOwl hour-of-day
+    // judgements) and washes the WasTimeEdited taint flag. Null on first run
+    // before any cycle has started.
+    public DateTime? CycleStartedAt { get; set; }
+    public bool CurrentCycleTimeEdited { get; set; }
+
     public void SaveState() => SaveTo(GetFilePath());
 
     /// <summary>
