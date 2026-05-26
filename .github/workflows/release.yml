@@ -60,7 +60,10 @@ jobs:
         run: dotnet test Lazybones.Tests/Lazybones.Tests.csproj -c Release --nologo
 
   pack:
-    needs: test
+    # Both jobs are listed: `test` is the gate (must pass before we pack), and
+    # `validate-version` is the source of the `version` output used in vpk pack.
+    # Outputs only flow through jobs explicitly named in needs.
+    needs: [validate-version, test]
     name: Pack ${{ matrix.rid }}
     runs-on: ${{ matrix.os }}
     strategy:
