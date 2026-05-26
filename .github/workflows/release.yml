@@ -78,13 +78,13 @@ jobs:
             framework: net10.0
             mainExe: Lazybones
             iconPath: icon.icns
-            extraVpkArgs: --bundleId com.malforge.lazybones
+            extraVpkArgs: --bundleId dev.malforge.lazybones
           - os: macos-latest
             rid: osx-x64
             framework: net10.0
             mainExe: Lazybones
             iconPath: icon.icns
-            extraVpkArgs: --bundleId com.malforge.lazybones
+            extraVpkArgs: --bundleId dev.malforge.lazybones
 
     steps:
       - uses: actions/checkout@v6

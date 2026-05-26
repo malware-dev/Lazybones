@@ -39,7 +39,7 @@
     <PropertyGroup>
         <CFBundleName>Get Up, Lazybones!</CFBundleName>
         <CFBundleDisplayName>Get Up, Lazybones!</CFBundleDisplayName>
-        <CFBundleIdentifier>com.malforge.lazybones</CFBundleIdentifier>
+        <CFBundleIdentifier>dev.malforge.lazybones</CFBundleIdentifier>
         <CFBundleVersion>1.0.0</CFBundleVersion>
         <CFBundleShortVersionString>1.0</CFBundleShortVersionString>
         <CFBundlePackageType>APPL</CFBundlePackageType>
@@ -48,6 +48,10 @@
 
     <ItemGroup>
         <AvaloniaResource Include="Assets\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Lazybones.Tests" />
     </ItemGroup>
 
     <ItemGroup>

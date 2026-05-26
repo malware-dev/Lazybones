@@ -7,28 +7,50 @@ namespace Lazybones.Features.StartAtLogin;
 [SupportedOSPlatform("macos")]
 internal sealed class MacStartupService : IStartupService
 {
-    private const string Label = "com.malforge.lazybones";
-    private const string LegacyLabel = "com.malforge.standup";
+    private const string Label = "dev.malforge.lazybones";
+
+    // Bundle identifiers we've shipped (or considered shipping) previously.
+    // SetEnabled removes any plist using these labels on every call so users
+    // upgrading from any prior identifier end up registered under the current
+    // Label only. IsEnabled treats either current or any legacy plist as
+    // "enabled" so the toggle correctly reflects existing-install state.
+    private static readonly string[] LegacyLabels =
+    {
+        "com.malforge.standup",  // pre-rename (project's previous name)
+        "com.malforge.lazybones" // pre-prefix-change (com → dev)
+    };
 
     private static readonly string LaunchAgentsDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         "Library", "LaunchAgents");
 
     private static readonly string PlistPath = Path.Combine(LaunchAgentsDir, $"{Label}.plist");
-    private static readonly string LegacyPlistPath = Path.Combine(LaunchAgentsDir, $"{LegacyLabel}.plist");
+
+    private static string LegacyPlistPath(string label) =>
+        Path.Combine(LaunchAgentsDir, $"{label}.plist");
 
     public string LoginItemLabel => "Open at login";
 
-    public bool IsEnabled => File.Exists(PlistPath) || File.Exists(LegacyPlistPath);
+    public bool IsEnabled
+    {
+        get
+        {
+            if (File.Exists(PlistPath)) return true;
+            foreach (var label in LegacyLabels)
+                if (File.Exists(LegacyPlistPath(label))) return true;
+            return false;
+        }
+    }
 
     public bool SetEnabled(bool enabled)
     {
         try
         {
-            // Always remove the legacy "com.malforge.standup" plist — its
-            // identifier doesn't match the bundle id of the current build.
-            if (File.Exists(LegacyPlistPath))
-                File.Delete(LegacyPlistPath);
+            foreach (var label in LegacyLabels)
+            {
+                var legacy = LegacyPlistPath(label);
+                if (File.Exists(legacy)) File.Delete(legacy);
+            }
 
             if (enabled)
             {
