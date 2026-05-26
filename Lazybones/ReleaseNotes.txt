@@ -1,3 +1,7 @@
+v.1.0.4
+   - New app icon: the in-app clock face with the cycle/standing rings, replacing the generic placeholder. The rings now show up on the Windows taskbar, the macOS Dock, and Alt-Tab listings.
+   - The mode-switch dialog now uses the app icon in taskbar/Alt-Tab listings too.
+
 v.1.0.3
    - Resilience: failed saves of state.json and history.jsonl no longer crash the app. A transient permission error or full disk is logged and ignored; the in-memory state remains authoritative and the next successful save catches up.
    - Dashboard window no longer leaks memory when opened and closed repeatedly — the dashboard ViewModel now properly unsubscribes from the update-checker on close.
