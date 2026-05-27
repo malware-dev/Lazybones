@@ -81,13 +81,13 @@ jobs:
             framework: net10.0
             mainExe: Lazybones
             iconPath: icon.icns
-            extraVpkArgs: --bundleId dev.malforge.lazybones
+            extraVpkArgs: --bundleId dev.malforge.lazybones --channel osx-arm64
           - os: macos-latest
             rid: osx-x64
             framework: net10.0
             mainExe: Lazybones
             iconPath: icon.icns
-            extraVpkArgs: --bundleId dev.malforge.lazybones
+            extraVpkArgs: --bundleId dev.malforge.lazybones --channel osx-x64
 
     steps:
       - uses: actions/checkout@v6
@@ -205,7 +205,7 @@ jobs:
 
           **macOS**
 
-          1. Download `Lazybones-osx-Setup.pkg` below.
+          1. Download the `.pkg` for your Mac: `Lazybones-osx-arm64-Setup.pkg` (Apple Silicon — M1/M2/M3/M4) or `Lazybones-osx-x64-Setup.pkg` (Intel). Not sure? Apple menu → About This Mac → the **Chip**/**Processor** line.
           2. Open it. macOS will block it because it isn't signed — that's expected. In the warning, click **Done** (or **Cancel**) — **not "Move to Trash"**, which deletes the installer you just downloaded.
           3. Open **System Settings → Privacy & Security**, scroll to the **Security** section, and click **Open Anyway** next to the note about Lazybones being blocked. Authenticate, confirm **Open**, then follow the installer.
 

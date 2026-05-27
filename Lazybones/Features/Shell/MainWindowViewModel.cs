@@ -137,7 +137,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _timer.Start();
 
         _currentDay = DateOnly.FromDateTime(DateTime.Now);
-        StartNewCycle();
+        StartNewCycle(persist: false);
         // If the previous session was mid-cycle, restore the cycle's identity
         // metadata over the fresh values StartNewCycle just set. Without this,
         // close-and-reopen mid-cycle re-anchors StartedAt to "now" (breaking
@@ -158,12 +158,34 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             Dispatcher.UIThread.Post(PromptStartWithWindows, DispatcherPriority.Background);
     }
 
-    private void StartNewCycle()
+    private void StartNewCycle(bool persist = true)
     {
         _cycleStartedAt = DateTime.Now;
         _currentCycleTimeEdited = false;
         _cyclePlannedSeconds = (IsStanding ? _state.StandingTimeInMinutes : _state.SittingTimeInMinutes) * 60;
         RefreshInnerRing();
+
+        // Flush the new mode/cycle to disk now, not just on Dispose: a swap is
+        // a deliberate state change, and several exit paths skip Dispose — a
+        // crash, an OS restart, or an update-driven ApplyAndRestart. Without
+        // this, such an exit resumes in the pre-swap mode and re-runs a cycle
+        // that already completed. Skipped during construction (persist: false),
+        // where the saved cycle identity is restored right after this call and
+        // must not be overwritten with a fresh StartedAt.
+        if (persist)
+            PersistCycleState();
+    }
+
+    // Writes the live mode/cycle fields through to AppState and saves. Mirrors
+    // the set persisted on Dispose; SaveState swallows transient I/O errors.
+    private void PersistCycleState()
+    {
+        _state.ElapsedTimeInSeconds = (int)Time.TotalSeconds;
+        _state.IsRunning = IsRunning;
+        _state.IsStanding = IsStanding;
+        _state.CycleStartedAt = _cycleStartedAt;
+        _state.CurrentCycleTimeEdited = _currentCycleTimeEdited;
+        _state.SaveState();
     }
 
     private void RecordCurrentCycle(CycleOutcome outcome, bool promptDismissed = false)
@@ -519,12 +541,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         _state.Left = (int)WindowPosition.X;
         _state.Top = (int)WindowPosition.Y;
-        _state.ElapsedTimeInSeconds = (int)Time.TotalSeconds;
-        _state.IsRunning = IsRunning;
-        _state.IsStanding = IsStanding;
-        _state.CycleStartedAt = _cycleStartedAt;
-        _state.CurrentCycleTimeEdited = _currentCycleTimeEdited;
-        _state.SaveState();
+        PersistCycleState();
     }
 
     private void ConfirmToggle()

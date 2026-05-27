@@ -1,3 +1,9 @@
+v.1.0.7
+   - Update checks now run on a regular timer rather than only when you start a sit/stand cycle, so a newly published release is picked up even while the app sits idle or paused.
+   - Your sit/stand mode is now saved the moment you swap. An app restart — including an automatic update restart — resumes in the correct mode instead of occasionally repeating the previous standing cycle.
+   - macOS now ships separate Apple Silicon and Intel installers (`osx-arm64` / `osx-x64`) instead of a single build that only worked on one architecture.
+   - Clearer macOS install instructions: use System Settings → Privacy & Security → Open Anyway, and don't click "Move to Trash" on the first-open warning.
+
 v.1.0.6
    - New: achievement count badge below the action toolbar on the main clock. Click it to jump to the Achievements tab.
    - The streak indicator above the clock is now clickable too — opens the Stats tab.
