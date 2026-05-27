@@ -24,14 +24,18 @@ public static class StreakCalculator
         var records = history.GetRange(lookback, today);
 
         // Count completed standing cycles per day, attributed by StartedAt.
+        // Tainted cycles (WasTimeEdited) don't count toward the daily goal —
+        // editing the clock invalidates the cycle.
         var cyclesByDay = records
-            .Where(r => r.WasStanding && r.Outcome == CycleOutcome.CompletedNaturally)
+            .Where(r => r.WasStanding && r.Outcome == CycleOutcome.CompletedNaturally && !r.WasTimeEdited)
             .GroupBy(r => DateOnly.FromDateTime(r.StartedAt))
             .ToDictionary(g => g.Key, g => g.Count());
 
-        // "Active days" = any cycle ever started on that date. Includes sitting
-        // and abandoned cycles — we just need to know whether Lazybones saw
-        // the user that day at all.
+        // "Active days" = any cycle ever started on that date. Includes sitting,
+        // abandoned, and time-edited cycles — we just need to know whether
+        // Lazybones saw the user that day at all. A tainted-only day is "active
+        // but below goal" and breaks the streak rather than being a forgiven
+        // pause; otherwise editing the clock would be a free streak-saver.
         var activeDays = new HashSet<DateOnly>(
             records.Select(r => DateOnly.FromDateTime(r.StartedAt)));
 

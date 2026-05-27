@@ -29,6 +29,12 @@ public sealed class CycleRecord
     // user wasn't engaged with the cycle and disqualifies engagement-based
     // achievements like Iron Legs.
     public int ResponseDelaySeconds { get; set; }
+
+    // True when the user manually edited the time during this cycle. Tainted
+    // cycles do not count toward achievements, the daily-goal ring, or streak
+    // progress — but they're still recorded and still contribute to lifetime
+    // stats display (minutes stood today, heatmap intensity, etc.).
+    public bool WasTimeEdited { get; set; }
 }
 
 [JsonSourceGenerationOptions(WriteIndented = false, UseStringEnumConverter = true)]

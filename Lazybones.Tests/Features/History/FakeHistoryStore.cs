@@ -34,5 +34,6 @@ internal sealed class FakeHistoryStore : IHistoryStore
     public int CompletedStandingCyclesOn(DateOnly day) =>
         _records.Count(r => r.WasStanding
                             && r.Outcome == CycleOutcome.CompletedNaturally
+                            && !r.WasTimeEdited
                             && DateOnly.FromDateTime(r.StartedAt) == day);
 }

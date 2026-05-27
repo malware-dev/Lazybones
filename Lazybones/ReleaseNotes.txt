@@ -1,3 +1,10 @@
+v.1.0.6
+   - New: achievement count badge below the action toolbar on the main clock. Click it to jump to the Achievements tab.
+   - The streak indicator above the clock is now clickable too — opens the Stats tab.
+   - Pointer cursor on every clickable element of the main window, not just the clock.
+   - Manually editing the time on the clock now invalidates that cycle for achievements and the streak. A warning is shown in the edit dialog. The minutes you stood still show up in your daily/lifetime stats — only achievement and streak progress is gated.
+   - Mid-cycle restarts no longer reset the cycle's identity: the cycle's StartedAt and any time-edit taint now survive across app restarts.
+
 v.1.0.5
    - The repository moved to the malforge organization on GitHub. The in-app updater now points at its new home so future updates keep flowing. No action needed on your end.
 

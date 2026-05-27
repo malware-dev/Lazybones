@@ -16,6 +16,9 @@ public class DashboardViewModel : ViewModelBase, IDisposable
 {
     private bool _disposed;
 
+    public const int StatsTabIndex = 0;
+    public const int AchievementsTabIndex = 1;
+    public const int SettingsTabIndex = 2;
     public const int UpdatesTabIndex = 3;
 
     private readonly AppState _state;

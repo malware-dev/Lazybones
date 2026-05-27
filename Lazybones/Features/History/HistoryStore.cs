@@ -90,6 +90,7 @@ public sealed class HistoryStore : IHistoryStore
             return LoadAll()
                 .Count(r => r.WasStanding
                             && r.Outcome == CycleOutcome.CompletedNaturally
+                            && !r.WasTimeEdited
                             && DateOnly.FromDateTime(r.StartedAt) == day);
         }
     }

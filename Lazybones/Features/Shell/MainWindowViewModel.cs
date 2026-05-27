@@ -63,6 +63,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly DispatcherTimer _timer;
     private bool _triggerInFlight;
     private DateTime _cycleStartedAt;
+    // Flips to true the first time the user confirms a time-adjust during the
+    // current cycle. Reset at every cycle boundary. Copied onto the CycleRecord
+    // in RecordCurrentCycle; downstream filters (achievement evaluation,
+    // streak, today's ring) treat tainted cycles as non-counting.
+    private bool _currentCycleTimeEdited;
     private int _cyclePlannedSeconds;
     // Wall-clock time at which the most recent TriggerAsync() fired (= when the
     // timer actually hit zero). Used to measure dialog response time without
@@ -88,6 +93,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         SwapCommand = new RelayCommand(ConfirmToggle);
         DashboardCommand = new RelayCommand(() => ShowDashboard());
         OpenUpdatesCommand = new RelayCommand(() => ShowDashboard(DashboardViewModel.UpdatesTabIndex));
+        OpenStatsCommand = new RelayCommand(() => ShowDashboard(DashboardViewModel.StatsTabIndex));
+        OpenAchievementsCommand = new RelayCommand(() => ShowDashboard(DashboardViewModel.AchievementsTabIndex));
         AdjustTimeCommand = new RelayCommand(ShowTimeAdjustment);
         ConfirmOverlayCommand = new RelayCommand(() => _overlay.Confirm());
         CancelOverlayCommand = new RelayCommand(() => _overlay.Cancel());
@@ -130,6 +137,15 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         _currentDay = DateOnly.FromDateTime(DateTime.Now);
         StartNewCycle();
+        // If the previous session was mid-cycle, restore the cycle's identity
+        // metadata over the fresh values StartNewCycle just set. Without this,
+        // close-and-reopen mid-cycle re-anchors StartedAt to "now" (breaking
+        // hour-of-day achievements) and washes the time-edit taint flag.
+        if (_state.CycleStartedAt.HasValue)
+        {
+            _cycleStartedAt = _state.CycleStartedAt.Value;
+            _currentCycleTimeEdited = _state.CurrentCycleTimeEdited;
+        }
         RefreshOuterRing();
         RefreshInnerRing();
         RefreshStreak();
@@ -144,6 +160,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private void StartNewCycle()
     {
         _cycleStartedAt = DateTime.Now;
+        _currentCycleTimeEdited = false;
         _cyclePlannedSeconds = (IsStanding ? _state.StandingTimeInMinutes : _state.SittingTimeInMinutes) * 60;
         RefreshInnerRing();
 
@@ -189,7 +206,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             ActualDurationSeconds = actual,
             Outcome = outcome,
             PromptDismissed = promptDismissed,
-            ResponseDelaySeconds = responseDelaySeconds
+            ResponseDelaySeconds = responseDelaySeconds,
+            WasTimeEdited = _currentCycleTimeEdited
         };
         _history.Append(record);
 
@@ -211,6 +229,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             _overlay.QueueAchievement(ach);
         }
         _state.SaveState();
+
+        OnPropertyChanged(nameof(AchievementProgressText));
     }
 
     private void RefreshOuterRing()
@@ -278,6 +298,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public ICommand SwapCommand { get; }
     public ICommand DashboardCommand { get; }
     public ICommand OpenUpdatesCommand { get; }
+    public ICommand OpenStatsCommand { get; }
+    public ICommand OpenAchievementsCommand { get; }
     public ICommand AdjustTimeCommand { get; }
     public ICommand ConfirmOverlayCommand { get; }
     public ICommand CancelOverlayCommand { get; }
@@ -285,6 +307,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public bool HasUpdate => UpdateService.Instance.State == UpdateState.UpdateReady;
 
     public string AvailableVersionText => $"v{UpdateService.Instance.AvailableVersion}";
+
+    public int UnlockedAchievementCount => _state.UnlockedAchievementIds.Count;
+    public int TotalAchievementCount => AchievementCatalog.All.Count;
+    public string AchievementProgressText => $"{UnlockedAchievementCount}/{TotalAchievementCount}";
 
     private void OnUpdateServicePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -501,6 +527,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _state.ElapsedTimeInSeconds = (int)Time.TotalSeconds;
         _state.IsRunning = IsRunning;
         _state.IsStanding = IsStanding;
+        _state.CycleStartedAt = _cycleStartedAt;
+        _state.CurrentCycleTimeEdited = _currentCycleTimeEdited;
         _state.SaveState();
     }
 
@@ -568,6 +596,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             if (result)
             {
                 Time = _overlay.AdjustedTime;
+                _currentCycleTimeEdited = true;
                 ResetStopwatch();
             }
         });
