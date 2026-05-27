@@ -48,12 +48,14 @@ Grab the latest installer from the
    Not sure which you have? Click the Apple menu → **About This Mac** and
    look at the **Chip** or **Processor** line.
 
-2. Open the downloaded `.pkg`. Gatekeeper will refuse to run it because the
-   app isn't signed with an Apple Developer ID — that's expected, for the
-   same reason as Windows above.
-3. To run it anyway: **Control-click** the `.pkg` in Finder, choose **Open**,
-   then click **Open** again in the warning dialog. Follow the installer
-   prompts.
+2. Open the downloaded `.pkg`. macOS will block it because the app isn't
+   signed with an Apple Developer ID — that's expected, for the same reason
+   as Windows above. In the warning, click **Done** (or **Cancel**) — **not
+   "Move to Trash"**, which deletes the installer you just downloaded.
+3. Open **System Settings → Privacy & Security** and scroll down to the
+   **Security** section. You'll see a note that Lazybones was blocked, with an
+   **Open Anyway** button — click it, authenticate, then confirm **Open** in
+   the dialog. Follow the installer prompts.
 
 Once installed, future updates download and apply themselves the next time
 you launch the app — you don't need to repeat any of this.
