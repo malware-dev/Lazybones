@@ -29,7 +29,7 @@ public sealed class UpdateService : ViewModelBase
 {
     public static UpdateService Instance { get; } = new();
 
-    private const string GithubOwner = "malware-dev";
+    private const string GithubOwner = "malforge";
     private const string GithubRepo = "Lazybones";
 
     private static readonly HttpClient HttpClient = CreateHttpClient();

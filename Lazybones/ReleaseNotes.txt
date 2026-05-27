@@ -1,3 +1,6 @@
+v.1.0.5
+   - The repository moved to the malforge organization on GitHub. The in-app updater now points at its new home so future updates keep flowing. No action needed on your end.
+
 v.1.0.4
    - New app icon: the in-app clock face with the cycle/standing rings, replacing the generic placeholder. The rings now show up on the Windows taskbar, the macOS Dock, and Alt-Tab listings.
    - The mode-switch dialog now uses the app icon in taskbar/Alt-Tab listings too.

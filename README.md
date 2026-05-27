@@ -28,7 +28,7 @@ interval and prompts you when it's time to swap. Built on Avalonia.
 ## Installing
 
 Grab the latest installer from the
-[Releases page](https://github.com/malware-dev/Lazybones/releases/latest).
+[Releases page](https://github.com/malforge/Lazybones/releases/latest).
 
 ### Windows
 
