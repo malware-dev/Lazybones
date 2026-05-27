@@ -100,6 +100,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         CancelOverlayCommand = new RelayCommand(() => _overlay.Cancel());
 
         UpdateService.Instance.PropertyChanged += OnUpdateServicePropertyChanged;
+        UpdateService.Instance.StartPolling();
 
         // Validate position - if minimized (-32000) or off-screen, use default position
         var left = _state.Left ?? 100;
@@ -163,12 +164,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _currentCycleTimeEdited = false;
         _cyclePlannedSeconds = (IsStanding ? _state.StandingTimeInMinutes : _state.SittingTimeInMinutes) * 60;
         RefreshInnerRing();
-
-        // Piggy-back update checks onto cycle starts: covers startup (initial
-        // cycle), every natural trigger, manual Swap, and Reset — i.e., every
-        // moment the user is actively engaging with the app. UpdateService
-        // throttles repeated calls so a Swap-mashing user can't spam GitHub.
-        UpdateService.Instance.RequestBackgroundCheck();
     }
 
     private void RecordCurrentCycle(CycleOutcome outcome, bool promptDismissed = false)

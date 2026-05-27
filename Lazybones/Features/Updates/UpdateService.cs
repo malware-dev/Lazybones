@@ -45,7 +45,7 @@ public sealed class UpdateService : ViewModelBase
 
     private readonly UpdateManager _mgr;
     private UpdateInfo? _pendingUpdate;
-    private DateTime _lastBackgroundCheck = DateTime.MinValue;
+    private DispatcherTimer? _pollTimer;
 
     private UpdateState _state = UpdateState.Idle;
     private string _currentVersion = "0.0.0";
@@ -111,9 +111,26 @@ public sealed class UpdateService : ViewModelBase
     public bool CanUpdate => _forceCanUpdate || _mgr.IsInstalled;
 
     /// <summary>
-    /// Fire-and-forget background poll. Throttled to BackgroundCheckInterval; safe to
-    /// call from any code path (cycle transitions, app start). Use CheckAsync when you
-    /// need to await the result, e.g. from a manual "Check now" button.
+    /// Starts wall-clock polling for updates: one check immediately, then another
+    /// every <see cref="BackgroundCheckInterval"/> for as long as the app runs.
+    /// Idempotent. Polling is independent of user activity, so a release published
+    /// while the app is open (or idle/paused) is still picked up on its own.
+    /// </summary>
+    public void StartPolling()
+    {
+        if (_pollTimer is not null) return;
+
+        _pollTimer = new DispatcherTimer { Interval = BackgroundCheckInterval };
+        _pollTimer.Tick += (_, _) => RequestBackgroundCheck();
+        _pollTimer.Start();
+
+        RequestBackgroundCheck();
+    }
+
+    /// <summary>
+    /// Fire-and-forget update check on a background thread; observe the result via
+    /// State/AvailableVersion. Driven by <see cref="StartPolling"/>'s timer. Use
+    /// CheckAsync when you need to await the result, e.g. from a manual "Check now" button.
     /// </summary>
     public void RequestBackgroundCheck()
     {
@@ -126,10 +143,6 @@ public sealed class UpdateService : ViewModelBase
             _ = Task.Run(() => SimulateUpdateReadyAsync(fakeVersion!.Trim()));
             return;
         }
-
-        var now = DateTime.UtcNow;
-        if (now - _lastBackgroundCheck < BackgroundCheckInterval) return;
-        _lastBackgroundCheck = now;
 
         _ = Task.Run(CheckAsync);
     }
