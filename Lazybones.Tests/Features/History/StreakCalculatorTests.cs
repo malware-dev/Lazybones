@@ -178,6 +178,43 @@ public class StreakCalculatorTests
     }
 
     [Fact]
+    public void Multiple_completions_in_one_day_each_count_separately()
+    {
+        // Goal of 3. Six standing cycles in a single day = two completions.
+        var history = new FakeHistoryStore();
+        for (var i = 0; i < 6; i++) history.Append(CompletedStanding(Today));
+
+        Assert.Equal(2, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public void Completions_accumulate_across_days_until_kill()
+    {
+        // Today: 6 → 2 completions. Yesterday: 3 → 1 completion. Total = 3.
+        var history = new FakeHistoryStore();
+        for (var i = 0; i < 6; i++) history.Append(CompletedStanding(Today));
+        for (var i = 0; i < 3; i++) history.Append(CompletedStanding(Today.AddDays(-1)));
+
+        Assert.Equal(3, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public void Active_day_below_goal_in_the_past_resets_the_count()
+    {
+        // Today 6 (2 completions), yesterday 3 (1 completion), 2-days-ago 1
+        // standing cycle (active, zero completions) — kill. Streak counts only
+        // today + yesterday.
+        var history = new FakeHistoryStore();
+        for (var i = 0; i < 6; i++) history.Append(CompletedStanding(Today));
+        for (var i = 0; i < 3; i++) history.Append(CompletedStanding(Today.AddDays(-1)));
+        history.Append(CompletedStanding(Today.AddDays(-2)));
+        // Older completions are now unreachable.
+        for (var i = 0; i < 9; i++) history.Append(CompletedStanding(Today.AddDays(-3)));
+
+        Assert.Equal(3, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
+    }
+
+    [Fact]
     public void RolloverReset_only_day_does_not_break_streak()
     {
         // Today: 3 ✓

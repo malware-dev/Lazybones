@@ -7,18 +7,24 @@ namespace Lazybones.Features.History;
 
 public static class StreakCalculator
 {
-    // A streak day = an active logical day where the user completed at least
-    // `dailyCycleGoal` standing cycles, dated by when each cycle STARTED.
-    // Cycles ended early via Swap or Reset don't count (Outcome must be
-    // CompletedNaturally). "Logical day" is determined by the configured
-    // day-rollover time — for the default 06:00, a cycle started 02:30 belongs
-    // to the previous logical day.
+    // A "streak" = one full daily-goal completion (filling the outer ring
+    // once). The streak count is the running TOTAL of completions from today
+    // backwards, stopping at the first "kill" day — an active day where the
+    // user did fewer than the goal's worth of cycles.
     //
-    // No real-time loss action — the streak fails at end-of-day when an
-    // active day finishes below the goal. Days with no records at all
-    // (screen locked all day / app paused / machine off) are "paused" and
-    // neither extend nor break the streak. Today is pending while still
-    // below the goal — a fresh morning doesn't look like a miss.
+    // Multiple completions in a single day count separately: 6 standing
+    // cycles with a goal of 3 = 2 completions = +2 to the count.
+    //
+    // Day-counting rules:
+    // - Today is pending: today's completions count, and today never kills
+    //   (a day in progress isn't a "miss" yet).
+    // - Paused days (no records at all) preserve the chain without adding.
+    // - Active days with zero completions kill the chain — everything before
+    //   them is unreachable.
+    // - RolloverReset records don't count as "active" — the rollover is the
+    //   app punching out a cycle, not the user.
+    // - Tainted cycles (WasTimeEdited) don't count toward completions, but
+    //   their presence still makes the day "active".
     public static int CalculateCurrent(IHistoryStore history, int dailyCycleGoal, DateOnly today, TimeSpan rolloverTime)
     {
         if (dailyCycleGoal <= 0) return 0;
@@ -26,44 +32,29 @@ public static class StreakCalculator
         var lookback = today.AddDays(-365);
         var records = history.GetRange(lookback, today, rolloverTime);
 
-        // Count completed standing cycles per day, attributed by StartedAt's
-        // logical day. Tainted cycles (WasTimeEdited) don't count toward the
-        // daily goal — editing the clock invalidates the cycle.
         var cyclesByDay = records
             .Where(r => r.WasStanding && r.Outcome == CycleOutcome.CompletedNaturally && !r.WasTimeEdited)
             .GroupBy(r => LogicalDay.From(r.StartedAt, rolloverTime))
             .ToDictionary(g => g.Key, g => g.Count());
 
-        // "Active days" = any cycle ever started on that logical date. Includes
-        // sitting, abandoned, and time-edited cycles — we just need to know
-        // whether Lazybones saw the user that day at all. A tainted-only day
-        // is "active but below goal" and breaks the streak rather than being a
-        // forgiven pause; otherwise editing the clock would be a free
-        // streak-saver.
-        //
-        // RolloverReset records are EXCLUDED here: the rollover is the app
-        // punching out the cycle, not the user, so a day on which the only
-        // recorded activity is a rollover-reset is treated as paused, not
-        // active-but-missed.
         var activeDays = new HashSet<DateOnly>(
             records
                 .Where(r => r.Outcome != CycleOutcome.RolloverReset)
                 .Select(r => LogicalDay.From(r.StartedAt, rolloverTime)));
 
-        // Today is pending until the count hits the goal.
-        var startDay = today;
-        if (cyclesByDay.GetValueOrDefault(today, 0) < dailyCycleGoal)
-            startDay = today.AddDays(-1);
-
-        var streak = 0;
-        for (var d = startDay; d >= lookback; d = d.AddDays(-1))
+        var completions = 0;
+        for (var d = today; d >= lookback; d = d.AddDays(-1))
         {
-            if (!activeDays.Contains(d)) continue; // paused day — skip
-            if (cyclesByDay.GetValueOrDefault(d, 0) >= dailyCycleGoal)
-                streak++;
-            else
-                break; // active day missed the goal
+            var cyclesOnDay = cyclesByDay.GetValueOrDefault(d, 0);
+            var completionsOnDay = cyclesOnDay / dailyCycleGoal;
+            completions += completionsOnDay;
+
+            // Today never kills the chain — a partial day is pending, not
+            // missed. Earlier days do: an active day with zero completions
+            // resets the streak to whatever's been counted so far above it.
+            if (d == today) continue;
+            if (activeDays.Contains(d) && completionsOnDay == 0) break;
         }
-        return streak;
+        return completions;
     }
 }

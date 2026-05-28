@@ -210,6 +210,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
                 _state.SaveState();
             }, DispatcherPriority.Background);
         }
+
+        // Construction complete — any further upward Streak transitions are
+        // real user accomplishments, not "restored from disk".
+        _suppressStreakCelebration = false;
     }
 
     // Returns the most recent rollover boundary at or before `now` for the
@@ -365,11 +369,41 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(AchievementProgressText));
     }
 
+    private bool _ringLatchedFull;
+    private DispatcherTimer? _ringLatchTimer;
+
     private void RefreshOuterRing()
     {
+        if (_ringLatchedFull)
+        {
+            OuterRingProgress = 1.0;
+            return;
+        }
         var goal = Math.Max(1, _state.DailyCycleGoal);
         var today = LogicalDay.From(DateTime.Now, _state.DayRolloverTime);
-        OuterRingProgress = Math.Min(1.0, (double)_history.CompletedStandingCyclesOn(today, _state.DayRolloverTime) / goal);
+        var cyclesToday = _history.CompletedStandingCyclesOn(today, _state.DayRolloverTime);
+        // Loop every `goal` cycles: completing the goal resets the ring so it
+        // fills again for the next streak. The latch above briefly holds the
+        // ring at 100% so the user sees the "full" moment before reset.
+        OuterRingProgress = (double)(cyclesToday % goal) / goal;
+    }
+
+    // Latches the outer ring at 100% for a moment, then snaps it to the
+    // start of the next round. Called when a streak event lands so the
+    // confetti has a "full ring" to celebrate against.
+    private void LatchRingFull(TimeSpan duration)
+    {
+        _ringLatchedFull = true;
+        _ringLatchTimer?.Stop();
+        OuterRingProgress = 1.0;
+        _ringLatchTimer = new DispatcherTimer(duration, DispatcherPriority.Normal, (_, _) =>
+        {
+            _ringLatchTimer?.Stop();
+            _ringLatchTimer = null;
+            _ringLatchedFull = false;
+            RefreshOuterRing();
+        });
+        _ringLatchTimer.Start();
     }
 
     private void RefreshStreak()
@@ -378,13 +412,24 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         Streak = StreakCalculator.CalculateCurrent(_history, _state.DailyCycleGoal, today, _state.DayRolloverTime);
     }
 
+    // Fires when the streak count crosses upward — i.e. the user just landed a
+    // new completion. The View subscribes to celebrate (confetti + ring latch).
+    public event Action? StreakAdvanced;
+    private bool _suppressStreakCelebration = true;
+
     public int Streak
     {
         get => _streak;
         private set
         {
-            if (SetField(ref _streak, value))
-                OnPropertyChanged(nameof(HasStreak));
+            var previous = _streak;
+            if (!SetField(ref _streak, value)) return;
+            OnPropertyChanged(nameof(HasStreak));
+            if (value > previous && !_suppressStreakCelebration)
+            {
+                LatchRingFull(TimeSpan.FromMilliseconds(900));
+                StreakAdvanced?.Invoke();
+            }
         }
     }
 

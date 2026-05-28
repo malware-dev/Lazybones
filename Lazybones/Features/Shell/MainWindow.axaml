@@ -510,6 +510,11 @@
                     </StackPanel>
                 </Grid>
             </Panel>
+
+            <!-- Confetti burst — last child so it renders ON TOP of the
+                 overlay panel above. Fires both on streak advancement and
+                 on achievement unlock; nothing else should obscure it. -->
+            <vm:ConfettiBurst x:Name="Confetti" IsHitTestVisible="False" />
         </Grid>
     </Border>
 </Window>
