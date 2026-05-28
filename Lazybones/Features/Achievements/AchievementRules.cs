@@ -20,9 +20,10 @@ public static class AchievementRules
         IHistoryStore history,
         int dailyCycleGoal,
         ICollection<string> alreadyUnlocked,
-        DateOnly today)
+        DateOnly today,
+        TimeSpan rolloverTime)
     {
-        var ctx = new EvalContext(justAppended, history, dailyCycleGoal, today);
+        var ctx = new EvalContext(justAppended, history, dailyCycleGoal, today, rolloverTime);
 
         var newly = new List<Achievement>();
         foreach (var ach in AchievementCatalog.All)
@@ -86,7 +87,7 @@ public static class AchievementRules
 
             AchievementCatalog.PerfectDayId =>
                 c.TodayStandingCycles >= c.DailyCycleGoal
-                && c.History.GetDay(c.Today).All(r => !r.PromptDismissed),
+                && c.History.GetDay(c.Today, c.RolloverTime).All(r => !r.PromptDismissed),
 
             AchievementCatalog.CenturionId =>
                 c.LifetimeStandingCycles >= 100,
@@ -103,41 +104,47 @@ public static class AchievementRules
 
     private sealed class EvalContext
     {
-        public EvalContext(CycleRecord record, IHistoryStore history, int dailyCycleGoal, DateOnly today)
+        public EvalContext(CycleRecord record, IHistoryStore history, int dailyCycleGoal, DateOnly today, TimeSpan rolloverTime)
         {
             Record = record;
             History = history;
             DailyCycleGoal = dailyCycleGoal;
             Today = today;
+            RolloverTime = rolloverTime;
         }
 
         public CycleRecord Record { get; }
         public IHistoryStore History { get; }
         public int DailyCycleGoal { get; }
         public DateOnly Today { get; }
+        public TimeSpan RolloverTime { get; }
 
         private int? _currentStreak;
-        public int CurrentStreak => _currentStreak ??= StreakCalculator.CalculateCurrent(History, DailyCycleGoal, Today);
+        public int CurrentStreak => _currentStreak ??= StreakCalculator.CalculateCurrent(History, DailyCycleGoal, Today, RolloverTime);
 
         private int? _todayStandingMinutes;
-        public int TodayStandingMinutes => _todayStandingMinutes ??= History.StandingMinutesOn(Today);
+        public int TodayStandingMinutes => _todayStandingMinutes ??= History.StandingMinutesOn(Today, RolloverTime);
 
         private int? _todayStandingCycles;
-        public int TodayStandingCycles => _todayStandingCycles ??= History.CompletedStandingCyclesOn(Today);
+        public int TodayStandingCycles => _todayStandingCycles ??= History.CompletedStandingCyclesOn(Today, RolloverTime);
 
         // Achievement counts exclude WasTimeEdited records — a tainted cycle
         // never contributes toward any achievement, daily-goal count, or
-        // lifetime total.
+        // lifetime total. Both Reset (user) and RolloverReset (app) are also
+        // excluded — neither represents a cycle the user followed through.
+        private static bool ContributesToCount(CycleRecord r) =>
+            r.Outcome != CycleOutcome.Reset && r.Outcome != CycleOutcome.RolloverReset && !r.WasTimeEdited;
+
         private int? _todayCycleCount;
         public int TodayCycleCount => _todayCycleCount ??=
-            History.GetDay(Today).Count(r => r.WasStanding && r.Outcome != CycleOutcome.Reset && !r.WasTimeEdited);
+            History.GetDay(Today, RolloverTime).Count(r => r.WasStanding && ContributesToCount(r));
 
         private IReadOnlyList<CycleRecord>? _allRecords;
         private IReadOnlyList<CycleRecord> AllRecords => _allRecords ??= History.GetAll();
 
         private int? _lifetimeStandingCycles;
         public int LifetimeStandingCycles => _lifetimeStandingCycles ??=
-            AllRecords.Count(r => r.WasStanding && r.Outcome != CycleOutcome.Reset && !r.WasTimeEdited);
+            AllRecords.Count(r => r.WasStanding && ContributesToCount(r));
 
         private int? _lifetimeStandingMinutes;
         public int LifetimeStandingMinutes => _lifetimeStandingMinutes ??=

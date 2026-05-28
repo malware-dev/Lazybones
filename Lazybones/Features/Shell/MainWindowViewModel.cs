@@ -47,6 +47,20 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         "Get your a** up!"
     ];
 
+    private static readonly string[] NewDayTexts =
+    [
+        "New day!",
+        "Fresh start.",
+        "Good morning!",
+        "Rise and shine.",
+        "Another lap around the sun.",
+        "Day one. Again.",
+        "Clean slate.",
+        "Here we go again.",
+        "Day reset.",
+        "Onwards!"
+    ];
+
     private string _hours = "00";
     private string _minutes = "00";
     private string _seconds = "00";
@@ -136,7 +150,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal, OnTimerTick);
         _timer.Start();
 
-        _currentDay = DateOnly.FromDateTime(DateTime.Now);
+        _currentDay = LogicalDay.From(DateTime.Now, _state.DayRolloverTime);
         StartNewCycle(persist: false);
         // If the previous session was mid-cycle, restore the cycle's identity
         // metadata over the fresh values StartNewCycle just set. Without this,
@@ -154,8 +168,66 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _presence.Locked += OnScreenLocked;
         _presence.Unlocked += OnScreenUnlocked;
 
-        if (!_state.HasAskedAboutStartup)
-            Dispatcher.UIThread.Post(PromptStartWithWindows, DispatcherPriority.Background);
+        // Apply any day rollover that should have fired while the app was
+        // closed. First-run anchors silently (no toast).
+        ApplyDayRolloverIfDue(silent: !_state.LastRolloverAppliedAt.HasValue);
+
+        if (!_state.HasShownInitialSettings)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                ShowDashboard(DashboardViewModel.SettingsTabIndex);
+                _state.HasShownInitialSettings = true;
+                _state.SaveState();
+            }, DispatcherPriority.Background);
+        }
+    }
+
+    // Returns the most recent rollover boundary at or before `now` for the
+    // configured rollover time-of-day. E.g. with time=06:30 and now=
+    // 2026-05-28 04:30, returns 2026-05-27 06:30.
+    private DateTime MostRecentRolloverBoundary(DateTime now)
+    {
+        var tod = _state.DayRolloverTime;
+        if (tod < TimeSpan.Zero || tod >= TimeSpan.FromDays(1))
+            tod = TimeSpan.FromHours(6);
+        var todayBoundary = now.Date + tod;
+        return now >= todayBoundary ? todayBoundary : todayBoundary.AddDays(-1);
+    }
+
+    // Checks whether a rollover boundary has passed since LastRolloverAppliedAt
+    // and, if so, resets the cycle to the configured start mode and shows the
+    // toast. When `silent` is true (first run), just anchors the timestamp.
+    // Returns true when a visible rollover was applied (caller can suppress
+    // any competing toast).
+    private bool ApplyDayRolloverIfDue(bool silent = false)
+    {
+        var boundary = MostRecentRolloverBoundary(DateTime.Now);
+        var last = _state.LastRolloverAppliedAt;
+        if (last.HasValue && last.Value >= boundary) return false;
+
+        _state.LastRolloverAppliedAt = boundary;
+
+        if (silent)
+        {
+            _state.SaveState();
+            return false;
+        }
+
+        // Close out the in-progress cycle with a RolloverReset (NOT a manual
+        // Reset) so the streak and other "active interaction" checks ignore
+        // it — the user is never punished for the app's own day rollover,
+        // regardless of what state the cycle was in.
+        RecordCurrentCycle(CycleOutcome.RolloverReset);
+
+        var startStanding = _state.StartDayStanding;
+        if (startStanding) StandUp(); else SitDown();
+
+        var actionText = startStanding
+            ? PickRandom(StandUpNowTexts)
+            : PickRandom(YouCanSitNowTexts);
+        _overlay.ShowDayRollover(PickRandom(NewDayTexts), actionText);
+        return true;
     }
 
     private void StartNewCycle(bool persist = true)
@@ -235,9 +307,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void EvaluateAchievements(CycleRecord record)
     {
-        var today = DateOnly.FromDateTime(DateTime.Now);
+        var today = LogicalDay.From(DateTime.Now, _state.DayRolloverTime);
         var newly = AchievementRules.EvaluateNewlyUnlocked(
-            record, _history, _state.DailyCycleGoal, _state.UnlockedAchievementIds, today);
+            record, _history, _state.DailyCycleGoal, _state.UnlockedAchievementIds, today, _state.DayRolloverTime);
         if (newly.Count == 0) return;
 
         foreach (var ach in newly)
@@ -253,13 +325,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private void RefreshOuterRing()
     {
         var goal = Math.Max(1, _state.DailyCycleGoal);
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        OuterRingProgress = Math.Min(1.0, (double)_history.CompletedStandingCyclesOn(today) / goal);
+        var today = LogicalDay.From(DateTime.Now, _state.DayRolloverTime);
+        OuterRingProgress = Math.Min(1.0, (double)_history.CompletedStandingCyclesOn(today, _state.DayRolloverTime) / goal);
     }
 
     private void RefreshStreak()
     {
-        Streak = StreakCalculator.CalculateCurrent(_history, _state.DailyCycleGoal, DateOnly.FromDateTime(DateTime.Now));
+        var today = LogicalDay.From(DateTime.Now, _state.DayRolloverTime);
+        Streak = StreakCalculator.CalculateCurrent(_history, _state.DailyCycleGoal, today, _state.DayRolloverTime);
     }
 
     public int Streak
@@ -295,19 +368,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         get => _innerRingProgress;
         private set => SetField(ref _innerRingProgress, value);
-    }
-
-    private void PromptStartWithWindows()
-    {
-        _overlay.ShowConfirmation(
-            $"{StartupService.Instance.LoginItemLabel}?",
-            "Would you like Get Up, Lazybones! to start automatically when you log in?",
-            result =>
-            {
-                _state.HasAskedAboutStartup = true;
-                _state.StartWithWindows = StartupService.Instance.SetEnabled(result) && result;
-                _state.SaveState();
-            });
     }
 
     public ICommand PlayPauseCommand { get; }
@@ -376,6 +436,18 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         get => _isRunning;
         set => SetField(ref _isRunning, value);
+    }
+
+    public bool AlwaysOnTop
+    {
+        get => _state.AlwaysOnTop;
+        set
+        {
+            if (_state.AlwaysOnTop == value) return;
+            _state.AlwaysOnTop = value;
+            _state.SaveState();
+            OnPropertyChanged(nameof(AlwaysOnTop));
+        }
     }
 
     public bool IsStanding
@@ -585,7 +657,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var vm = new DashboardViewModel(_state, _history, RefreshOuterRing)
+        var vm = new DashboardViewModel(_state, _history, RefreshOuterRing,
+            onAlwaysOnTopChanged: () => OnPropertyChanged(nameof(AlwaysOnTop)))
         {
             SelectedTabIndex = initialTabIndex
         };
@@ -627,13 +700,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void OnTimerTick(object? sender, EventArgs e)
     {
-        var today = DateOnly.FromDateTime(DateTime.Now);
+        var today = LogicalDay.From(DateTime.Now, _state.DayRolloverTime);
         if (today != _currentDay)
         {
             _currentDay = today;
             RefreshOuterRing();
             RefreshStreak();
         }
+
+        // Day rollover is checked on every tick (cheap; usually a no-op) so
+        // it fires while the app is open, not only on startup/unlock.
+        ApplyDayRolloverIfDue();
 
         if (!IsRunning) return;
         Time -= _stopwatch.Elapsed;
@@ -665,6 +742,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         var awayFor = DateTime.Now - _autoPauseStartedAt;
         Resume();
+
+        // If the lock window straddled a rollover, the rollover toast wins —
+        // it carries the more important "fresh day, mode reset" message.
+        if (ApplyDayRolloverIfDue()) return;
+
         _overlay.ShowIdleResumed(awayFor);
     }
 }

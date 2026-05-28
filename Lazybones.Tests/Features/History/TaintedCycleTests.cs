@@ -42,7 +42,7 @@ public class TaintedCycleTests
         history.Append(record);
 
         var unlocked = AchievementRules.EvaluateNewlyUnlocked(record, history, dailyCycleGoal: 3,
-            alreadyUnlocked: Array.Empty<string>(), today: Today);
+            alreadyUnlocked: Array.Empty<string>(), today: Today, rolloverTime: TimeSpan.Zero);
 
         Assert.DoesNotContain(unlocked, a => a.Id == AchievementCatalog.FirstStandId);
     }
@@ -55,7 +55,7 @@ public class TaintedCycleTests
         history.Append(record);
 
         var unlocked = AchievementRules.EvaluateNewlyUnlocked(record, history, dailyCycleGoal: 3,
-            alreadyUnlocked: Array.Empty<string>(), today: Today);
+            alreadyUnlocked: Array.Empty<string>(), today: Today, rolloverTime: TimeSpan.Zero);
 
         Assert.DoesNotContain(unlocked, a => a.Id == AchievementCatalog.IronLegsId);
     }
@@ -68,7 +68,7 @@ public class TaintedCycleTests
         history.Append(record);
 
         var unlocked = AchievementRules.EvaluateNewlyUnlocked(record, history, dailyCycleGoal: 3,
-            alreadyUnlocked: Array.Empty<string>(), today: Today);
+            alreadyUnlocked: Array.Empty<string>(), today: Today, rolloverTime: TimeSpan.Zero);
 
         Assert.DoesNotContain(unlocked, a => a.Id == AchievementCatalog.QuickDrawId);
     }
@@ -81,7 +81,7 @@ public class TaintedCycleTests
         history.Append(record);
 
         var unlocked = AchievementRules.EvaluateNewlyUnlocked(record, history, dailyCycleGoal: 3,
-            alreadyUnlocked: Array.Empty<string>(), today: Today);
+            alreadyUnlocked: Array.Empty<string>(), today: Today, rolloverTime: TimeSpan.Zero);
 
         Assert.Contains(unlocked, a => a.Id == AchievementCatalog.FirstStandId);
     }
@@ -98,7 +98,7 @@ public class TaintedCycleTests
         history.Append(fifth);
 
         var unlocked = AchievementRules.EvaluateNewlyUnlocked(fifth, history, dailyCycleGoal: 3,
-            alreadyUnlocked: Array.Empty<string>(), today: Today);
+            alreadyUnlocked: Array.Empty<string>(), today: Today, rolloverTime: TimeSpan.Zero);
 
         Assert.DoesNotContain(unlocked, a => a.Id == AchievementCatalog.DailyDriverId);
     }
@@ -114,7 +114,7 @@ public class TaintedCycleTests
         history.Append(hundredth);
 
         var unlocked = AchievementRules.EvaluateNewlyUnlocked(hundredth, history, dailyCycleGoal: 3,
-            alreadyUnlocked: Array.Empty<string>(), today: Today);
+            alreadyUnlocked: Array.Empty<string>(), today: Today, rolloverTime: TimeSpan.Zero);
 
         Assert.DoesNotContain(unlocked, a => a.Id == AchievementCatalog.CenturionId);
     }
@@ -132,7 +132,7 @@ public class TaintedCycleTests
         history.Append(twentieth);
 
         var unlocked = AchievementRules.EvaluateNewlyUnlocked(twentieth, history, dailyCycleGoal: 3,
-            alreadyUnlocked: Array.Empty<string>(), today: Today);
+            alreadyUnlocked: Array.Empty<string>(), today: Today, rolloverTime: TimeSpan.Zero);
 
         Assert.DoesNotContain(unlocked, a => a.Id == AchievementCatalog.LongHaulId);
     }
@@ -151,7 +151,7 @@ public class TaintedCycleTests
         for (var i = 0; i < 3; i++)
             history.Append(StandingNaturalEngaged(tainted: true));
 
-        var streak = StreakCalculator.CalculateCurrent(history, dailyCycleGoal: 3, Today);
+        var streak = StreakCalculator.CalculateCurrent(history, dailyCycleGoal: 3, Today, TimeSpan.Zero);
         Assert.Equal(2, streak);
     }
 
@@ -168,7 +168,7 @@ public class TaintedCycleTests
         for (var i = 0; i < 3; i++) history.Append(StandingNaturalEngaged(day: Today.AddDays(-2), tainted: true));
         for (var i = 0; i < 3; i++) history.Append(StandingNaturalEngaged(day: Today.AddDays(-3), tainted: false));
 
-        var streak = StreakCalculator.CalculateCurrent(history, dailyCycleGoal: 3, Today);
+        var streak = StreakCalculator.CalculateCurrent(history, dailyCycleGoal: 3, Today, TimeSpan.Zero);
         Assert.Equal(2, streak);
     }
 
@@ -181,7 +181,7 @@ public class TaintedCycleTests
         history.Append(StandingNaturalEngaged(tainted: true));
         history.Append(StandingNaturalEngaged(tainted: true));
 
-        Assert.Equal(2, history.CompletedStandingCyclesOn(Today));
+        Assert.Equal(2, history.CompletedStandingCyclesOn(Today, TimeSpan.Zero));
     }
 
     [Fact]
@@ -194,6 +194,6 @@ public class TaintedCycleTests
         history.Append(StandingNaturalEngaged(durationMinutes: 30, tainted: false));
         history.Append(StandingNaturalEngaged(durationMinutes: 20, tainted: true));
 
-        Assert.Equal(50, history.StandingMinutesOn(Today));
+        Assert.Equal(50, history.StandingMinutesOn(Today, TimeSpan.Zero));
     }
 }

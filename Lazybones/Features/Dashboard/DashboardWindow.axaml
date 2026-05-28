@@ -16,6 +16,7 @@
         WindowDecorations="None"
         Background="Transparent"
         TransparencyLevelHint="Transparent"
+        Topmost="{Binding AlwaysOnTop}"
         WindowStartupLocation="CenterOwner">
 
     <Window.Resources>
@@ -129,6 +130,39 @@
             <Setter Property="Opacity" Value="1.0" />
             <Setter Property="Background" Value="#FF152A1A" />
             <Setter Property="BorderBrush" Value="#FF2A4A33" />
+        </Style>
+
+        <!-- Dropdown button that opens the clock-face time picker. Styled to
+             read as an input field, not a regular action button. -->
+        <Style Selector="Button.clockface">
+            <Setter Property="Background" Value="#FF1A1A1A" />
+            <Setter Property="BorderBrush" Value="#FF2A2A2A" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundColor}" />
+            <Setter Property="MinWidth" Value="80" />
+        </Style>
+        <Style Selector="Button.clockface:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#FF232323" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}" />
+        </Style>
+
+        <!-- 'Recommended' pill next to the start-with-OS checkbox. -->
+        <Style Selector="Border.pill">
+            <Setter Property="Background" Value="#FF1E3A5F" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="6,1" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.pill > TextBlock">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentColor}" />
         </Style>
     </Window.Styles>
 
@@ -262,6 +296,18 @@
                     <TabItem Header="Settings">
                         <StackPanel Spacing="16" Margin="18,14,18,18">
 
+                            <!-- Pinned to top so the auto-opened-on-first-launch
+                                 view surfaces it immediately; otherwise it gets
+                                 lost among the other settings. -->
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <CheckBox Content="{Binding StartWithOsLabel}"
+                                          IsChecked="{Binding StartWithWindows}"
+                                          VerticalAlignment="Center" />
+                                <Border Classes="pill">
+                                    <TextBlock Text="Recommended" />
+                                </Border>
+                            </StackPanel>
+
                             <StackPanel Spacing="4">
                                 <TextBlock Classes="label" Text="Standing time (minutes)" />
                                 <NumericUpDown Value="{Binding StandingTime}"
@@ -286,8 +332,33 @@
                                                HorizontalAlignment="Stretch" />
                             </StackPanel>
 
-                            <CheckBox Content="{Binding StartWithOsLabel}"
-                                      IsChecked="{Binding StartWithWindows}" />
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="label" Text="Day rolls over at" />
+                                <Button Classes="clockface"
+                                        HorizontalAlignment="Left">
+                                    <TextBlock Text="{Binding RolloverTimeText}" />
+                                    <Button.Flyout>
+                                        <Flyout Placement="Bottom" ShowMode="Standard">
+                                            <vm:ClockDial Hour="{Binding RolloverHour}"
+                                                          Minute="{Binding RolloverMinute}"
+                                                          Width="220" Height="220" />
+                                        </Flyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </StackPanel>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="label" Text="Start each day" />
+                                <ComboBox SelectedIndex="{Binding StartDayModeIndex}"
+                                          HorizontalAlignment="Left"
+                                          MinWidth="160">
+                                    <ComboBoxItem>Seated</ComboBoxItem>
+                                    <ComboBoxItem>Standing</ComboBoxItem>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <CheckBox Content="Always on top"
+                                      IsChecked="{Binding AlwaysOnTop}" />
 
                             <TextBlock Classes="muted"
                                        Text="Changes save automatically."

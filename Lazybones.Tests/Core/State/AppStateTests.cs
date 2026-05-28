@@ -32,7 +32,7 @@ public class AppStateTests : IDisposable
         Assert.Equal(30, state.StandingTimeInMinutes);
         Assert.Equal(120, state.SittingTimeInMinutes);
         Assert.Equal(3, state.DailyCycleGoal);
-        Assert.False(state.HasAskedAboutStartup);
+        Assert.False(state.HasShownInitialSettings);
         Assert.False(state.StartWithWindows);
         Assert.Empty(state.UnlockedAchievementIds);
         Assert.Null(state.CycleStartedAt);
@@ -68,7 +68,7 @@ public class AppStateTests : IDisposable
             StandingTimeInMinutes = 25,
             SittingTimeInMinutes = 75,
             DailyCycleGoal = 5,
-            HasAskedAboutStartup = true,
+            HasShownInitialSettings = true,
             StartWithWindows = true,
             UnlockedAchievementIds = new() { "first_stand", "quick_draw" },
             CycleStartedAt = new DateTime(2026, 5, 26, 14, 0, 0, DateTimeKind.Utc),
@@ -86,7 +86,7 @@ public class AppStateTests : IDisposable
         Assert.Equal(original.StandingTimeInMinutes, loaded.StandingTimeInMinutes);
         Assert.Equal(original.SittingTimeInMinutes, loaded.SittingTimeInMinutes);
         Assert.Equal(original.DailyCycleGoal, loaded.DailyCycleGoal);
-        Assert.Equal(original.HasAskedAboutStartup, loaded.HasAskedAboutStartup);
+        Assert.Equal(original.HasShownInitialSettings, loaded.HasShownInitialSettings);
         Assert.Equal(original.StartWithWindows, loaded.StartWithWindows);
         Assert.Equal(original.UnlockedAchievementIds, loaded.UnlockedAchievementIds);
         Assert.Equal(original.CycleStartedAt, loaded.CycleStartedAt);

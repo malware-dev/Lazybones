@@ -119,7 +119,7 @@ public class HistoryStoreTests : IDisposable
         store.Append(Standing(d1));
         store.Append(Standing(d2));
 
-        var day = new HistoryStore(_filePath).GetDay(new DateOnly(2026, 5, 26));
+        var day = new HistoryStore(_filePath).GetDay(new DateOnly(2026, 5, 26), TimeSpan.Zero);
         Assert.Single(day);
         Assert.Equal(DateOnly.FromDateTime(d2), DateOnly.FromDateTime(day[0].EndedAt));
     }
@@ -134,7 +134,7 @@ public class HistoryStoreTests : IDisposable
         store.Append(Standing(new DateTime(2026, 5, 27, 10, 0, 0)));
 
         var fresh = new HistoryStore(_filePath);
-        var range = fresh.GetRange(new DateOnly(2026, 5, 25), new DateOnly(2026, 5, 26));
+        var range = fresh.GetRange(new DateOnly(2026, 5, 25), new DateOnly(2026, 5, 26), TimeSpan.Zero);
         Assert.Equal(2, range.Count);
     }
 
@@ -161,7 +161,7 @@ public class HistoryStoreTests : IDisposable
         // Standing cycle on a different day — must not contribute.
         store.Append(Standing(day.AddDays(-1), durationMinutes: 100));
 
-        var minutes = new HistoryStore(_filePath).StandingMinutesOn(new DateOnly(2026, 5, 26));
+        var minutes = new HistoryStore(_filePath).StandingMinutesOn(new DateOnly(2026, 5, 26), TimeSpan.Zero);
         Assert.Equal(75, minutes);
     }
 
@@ -181,8 +181,8 @@ public class HistoryStoreTests : IDisposable
         });
 
         var fresh = new HistoryStore(_filePath);
-        Assert.Equal(1, fresh.CompletedStandingCyclesOn(new DateOnly(2026, 5, 25)));
-        Assert.Equal(0, fresh.CompletedStandingCyclesOn(new DateOnly(2026, 5, 26)));
+        Assert.Equal(1, fresh.CompletedStandingCyclesOn(new DateOnly(2026, 5, 25), TimeSpan.Zero));
+        Assert.Equal(0, fresh.CompletedStandingCyclesOn(new DateOnly(2026, 5, 26), TimeSpan.Zero));
     }
 
     [Fact]
@@ -211,6 +211,6 @@ public class HistoryStoreTests : IDisposable
             PlannedDurationSeconds = 30 * 60
         });
 
-        Assert.Equal(1, new HistoryStore(_filePath).CompletedStandingCyclesOn(new DateOnly(2026, 5, 26)));
+        Assert.Equal(1, new HistoryStore(_filePath).CompletedStandingCyclesOn(new DateOnly(2026, 5, 26), TimeSpan.Zero));
     }
 }

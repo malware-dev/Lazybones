@@ -42,14 +42,14 @@ public class StreakCalculatorTests
     public void Zero_or_negative_goal_returns_zero()
     {
         var history = new FakeHistoryStore();
-        Assert.Equal(0, StreakCalculator.CalculateCurrent(history, 0, Today));
-        Assert.Equal(0, StreakCalculator.CalculateCurrent(history, -5, Today));
+        Assert.Equal(0, StreakCalculator.CalculateCurrent(history, 0, Today, TimeSpan.Zero));
+        Assert.Equal(0, StreakCalculator.CalculateCurrent(history, -5, Today, TimeSpan.Zero));
     }
 
     [Fact]
     public void Empty_history_returns_zero()
     {
-        Assert.Equal(0, StreakCalculator.CalculateCurrent(new FakeHistoryStore(), 3, Today));
+        Assert.Equal(0, StreakCalculator.CalculateCurrent(new FakeHistoryStore(), 3, Today, TimeSpan.Zero));
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class StreakCalculatorTests
     {
         var history = new FakeHistoryStore();
         for (var i = 0; i < 3; i++) history.Append(CompletedStanding(Today));
-        Assert.Equal(1, StreakCalculator.CalculateCurrent(history, 3, Today));
+        Assert.Equal(1, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class StreakCalculatorTests
         for (var i = 0; i < 3; i++) history.Append(CompletedStanding(yesterday));
         history.Append(CompletedStanding(Today)); // 1 of 3 so far today
 
-        Assert.Equal(1, StreakCalculator.CalculateCurrent(history, 3, Today));
+        Assert.Equal(1, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class StreakCalculatorTests
             for (var i = 0; i < 3; i++) history.Append(CompletedStanding(d));
         }
 
-        Assert.Equal(5, StreakCalculator.CalculateCurrent(history, 3, Today));
+        Assert.Equal(5, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public class StreakCalculatorTests
         history.Append(CompletedStanding(Today.AddDays(-2))); // active but only 1
         for (var i = 0; i < 3; i++) history.Append(CompletedStanding(Today.AddDays(-3)));
 
-        Assert.Equal(2, StreakCalculator.CalculateCurrent(history, 3, Today));
+        Assert.Equal(2, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public class StreakCalculatorTests
         // no records 2 days ago
         for (var i = 0; i < 3; i++) history.Append(CompletedStanding(Today.AddDays(-3)));
 
-        Assert.Equal(3, StreakCalculator.CalculateCurrent(history, 3, Today));
+        Assert.Equal(3, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public class StreakCalculatorTests
         history.Append(Sitting(Today.AddDays(-1)));
         for (var i = 0; i < 3; i++) history.Append(CompletedStanding(Today.AddDays(-2)));
 
-        Assert.Equal(1, StreakCalculator.CalculateCurrent(history, 3, Today));
+        Assert.Equal(1, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public class StreakCalculatorTests
         var history = new FakeHistoryStore();
         for (var i = 0; i < 3; i++) history.Append(ToggledStanding(Today));
 
-        Assert.Equal(0, StreakCalculator.CalculateCurrent(history, 3, Today));
+        Assert.Equal(0, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
     }
 
     [Fact]
@@ -159,7 +159,7 @@ public class StreakCalculatorTests
             PlannedDurationSeconds = 30 * 60
         });
 
-        Assert.Equal(1, StreakCalculator.CalculateCurrent(history, 3, Today));
+        Assert.Equal(1, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
     }
 
     [Fact]
@@ -173,7 +173,36 @@ public class StreakCalculatorTests
             for (var c = 0; c < 3; c++) history.Append(CompletedStanding(d));
         }
 
-        var streak = StreakCalculator.CalculateCurrent(history, 3, Today);
+        var streak = StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero);
         Assert.InRange(streak, 1, 366);
+    }
+
+    [Fact]
+    public void RolloverReset_only_day_does_not_break_streak()
+    {
+        // Today: 3 ✓
+        // Yesterday: 3 ✓
+        // 2 days ago: only a single RolloverReset record (app punched the
+        //             cycle at day-rollover; user wasn't actively interacting).
+        //             Must be treated as a paused day, NOT active-but-missed.
+        // 3 days ago: 3 ✓ — should still chain through the rollover day.
+        var history = new FakeHistoryStore();
+        for (var i = 0; i < 3; i++) history.Append(CompletedStanding(Today));
+        for (var i = 0; i < 3; i++) history.Append(CompletedStanding(Today.AddDays(-1)));
+        history.Append(new CycleRecord
+        {
+            StartedAt = Today.AddDays(-2).ToDateTime(new TimeOnly(23, 30)),
+            EndedAt = Today.AddDays(-2).ToDateTime(new TimeOnly(23, 30)),
+            WasStanding = false,
+            Outcome = CycleOutcome.RolloverReset,
+            ActualDurationSeconds = 0,
+            PlannedDurationSeconds = 30 * 60
+        });
+        for (var i = 0; i < 3; i++) history.Append(CompletedStanding(Today.AddDays(-3)));
+
+        // Three goal-met days (Today, -1, -3). The rollover day at -2 is
+        // treated as paused — it preserves continuity to -3 but doesn't add
+        // to the count, matching the existing "paused day" semantics.
+        Assert.Equal(3, StreakCalculator.CalculateCurrent(history, 3, Today, TimeSpan.Zero));
     }
 }

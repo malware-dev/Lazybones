@@ -1,3 +1,11 @@
+v.1.1.0
+   - New: configurable day-rollover time. Set when your day starts (default 06:00) in Settings; when the clock crosses the boundary — or the app resumes from a lock that straddled it — the cycle resets to your chosen start mode (Seated by default) and a "New day" toast appears.
+   - All day-based stats now honor your rollover time instead of calendar midnight: today's ring, streak, heatmap, cycles-per-day chart, and the daily achievement counters all use it. A 02:30 standing cycle with a 06:00 rollover now counts toward the day you mentally finished, not the next one. The rollover itself never breaks your streak — even if it caught a cycle mid-flight.
+   - New: "Always on top" toggle in Settings (default on). Also fixes the Dashboard window sometimes ending up behind the main disk on macOS.
+   - First launch now drops straight into the Settings tab, with "Start with Windows" / "Start at login" pinned at the top tagged Recommended — replaces the old yes/no popup so configuration is visible, not buried.
+   - New clock-face time picker for the rollover setting: two concentric rings (hours outer, minutes inner), drag / scroll / arrow keys to set, or click the central HH:MM and type the time directly.
+   - Internal: streak / achievement / heatmap math is now parameterised on the rollover time, with TimeSpan.Zero as the calendar-day degenerate case. New CycleOutcome.RolloverReset distinguishes app-initiated resets from user resets.
+
 v.1.0.7
    - Update checks now run on a regular timer rather than only when you start a sit/stand cycle, so a newly published release is picked up even while the app sits idle or paused.
    - Your sit/stand mode is now saved the moment you swap. An app restart — including an automatic update restart — resumes in the correct mode instead of occasionally repeating the previous standing cycle.

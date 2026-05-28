@@ -43,8 +43,14 @@ public class AppState
     // an older minutes-based "DailyGoalMinutes" field — old state.json files
     // missing this property fall back to the default.
     public int DailyCycleGoal { get; set; } = 3;
-    public bool HasAskedAboutStartup { get; set; }
     public bool StartWithWindows { get; set; }
+    // Flips to true the first time the Settings tab is auto-opened on launch
+    // (introducing the user to the configuration surface). Separate from any
+    // older flags so existing installs still get the one-time tour.
+    public bool HasShownInitialSettings { get; set; }
+    // Whether the main disk should float above other windows. The whole point
+    // of the disk is to remain visible, so default on.
+    public bool AlwaysOnTop { get; set; } = true;
     public List<string> UnlockedAchievementIds { get; set; } = new();
 
     // In-flight cycle metadata, persisted across restarts so close-and-reopen
@@ -54,6 +60,22 @@ public class AppState
     // before any cycle has started.
     public DateTime? CycleStartedAt { get; set; }
     public bool CurrentCycleTimeEdited { get; set; }
+
+    // Time of day at which a new "day" begins for rollover purposes. When the
+    // clock crosses this boundary (or the app starts/resumes past it), the
+    // current cycle is reset to StartDayStanding's mode and a toast is shown.
+    // Defaults to 06:00. Hours-only is the common case but allowing minutes
+    // matters for users whose schedules don't fall on the hour.
+    public TimeSpan DayRolloverTime { get; set; } = TimeSpan.FromHours(6);
+
+    // Mode to use when the rollover fires. Default false = start day seated.
+    public bool StartDayStanding { get; set; }
+
+    // The most recent rollover boundary we've already applied. Used to decide
+    // whether a rollover is due on startup / unlock / tick. Null means "no
+    // rollover applied yet" — first run anchors it to the most recent past
+    // boundary without showing the toast.
+    public DateTime? LastRolloverAppliedAt { get; set; }
 
     public void SaveState() => SaveTo(GetFilePath());
 

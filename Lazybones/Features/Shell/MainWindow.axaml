@@ -15,7 +15,7 @@
         Background="Transparent"
         TransparencyLevelHint="Transparent"
         BorderThickness="0"
-        Topmost="True"
+        Topmost="{Binding AlwaysOnTop}"
         Width="300"
         Height="300"
         behaviors:DraggableWindowBehavior.EnableDrag="True">
@@ -42,6 +42,7 @@
         <StreamGeometry x:Key="CoffeeGeometry">M2 21h18v-2H2v2zM20 8h-2V5H4v6c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.1 0 2-.9 2-2v-2c0-1.11-.9-2-2-2zm0 4h-2v-2h2v2z</StreamGeometry>
         <StreamGeometry x:Key="SystemUpdateGeometry">M12 16.5 6 10.5l1.41-1.41L11 12.67V3h2v9.67l3.59-3.58L18 10.5l-6 6zm-9 1.5h18v2H3z</StreamGeometry>
         <StreamGeometry x:Key="TrophyGeometry">M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z</StreamGeometry>
+        <StreamGeometry x:Key="SunriseGeometry">M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zM17.24 18.16l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91 1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z</StreamGeometry>
     </Window.Resources>
 
     <Window.Styles>
@@ -395,6 +396,30 @@
                             <TextBlock Text="Welcome back"
                                        FontSize="11"
                                        Foreground="#FF4CC2FF"
+                                       VerticalAlignment="Center"
+                                       FontWeight="Bold" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding Overlay.Message}"
+                                   FontWeight="Bold"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource ForegroundColor}"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <!-- Day Rollover Toast (auto-dismiss, no buttons) -->
+                    <StackPanel IsVisible="{Binding Overlay.OverlayType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:OverlayType.DayRolloverToast}}"
+                                Spacing="6"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+                            <PathIcon Width="18" Height="18"
+                                      Data="{StaticResource SunriseGeometry}"
+                                      Foreground="#FFFFD166"
+                                      VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Overlay.Title}"
+                                       FontSize="11"
+                                       Foreground="#FFFFD166"
                                        VerticalAlignment="Center"
                                        FontWeight="Bold" />
                         </StackPanel>

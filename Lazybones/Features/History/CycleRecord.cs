@@ -7,7 +7,12 @@ public enum CycleOutcome
 {
     CompletedNaturally,
     Toggled,
-    Reset
+    Reset,
+    // App-initiated reset at the configured day-rollover boundary. Distinct
+    // from Reset (which is a user action) so that the streak and the various
+    // "did the user interact with the app this day?" checks can ignore it —
+    // the rollover is not a short-circuit the user is responsible for.
+    RolloverReset
 }
 
 public sealed class CycleRecord

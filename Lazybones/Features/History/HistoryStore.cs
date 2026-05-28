@@ -40,24 +40,24 @@ public sealed class HistoryStore : IHistoryStore
         }
     }
 
-    public IReadOnlyList<CycleRecord> GetDay(DateOnly date)
+    public IReadOnlyList<CycleRecord> GetDay(DateOnly date, TimeSpan rolloverTime)
     {
         lock (_lock)
         {
             return LoadAll()
-                .Where(r => DateOnly.FromDateTime(r.EndedAt) == date)
+                .Where(r => LogicalDay.From(r.EndedAt, rolloverTime) == date)
                 .ToList();
         }
     }
 
-    public IReadOnlyList<CycleRecord> GetRange(DateOnly from, DateOnly to)
+    public IReadOnlyList<CycleRecord> GetRange(DateOnly from, DateOnly to, TimeSpan rolloverTime)
     {
         lock (_lock)
         {
             return LoadAll()
                 .Where(r =>
                 {
-                    var d = DateOnly.FromDateTime(r.EndedAt);
+                    var d = LogicalDay.From(r.EndedAt, rolloverTime);
                     return d >= from && d <= to;
                 })
                 .ToList();
@@ -72,18 +72,18 @@ public sealed class HistoryStore : IHistoryStore
         }
     }
 
-    public int StandingMinutesOn(DateOnly day)
+    public int StandingMinutesOn(DateOnly day, TimeSpan rolloverTime)
     {
         lock (_lock)
         {
             var seconds = LoadAll()
-                .Where(r => r.WasStanding && DateOnly.FromDateTime(r.EndedAt) == day)
+                .Where(r => r.WasStanding && LogicalDay.From(r.EndedAt, rolloverTime) == day)
                 .Sum(r => r.ActualDurationSeconds);
             return seconds / 60;
         }
     }
 
-    public int CompletedStandingCyclesOn(DateOnly day)
+    public int CompletedStandingCyclesOn(DateOnly day, TimeSpan rolloverTime)
     {
         lock (_lock)
         {
@@ -91,7 +91,7 @@ public sealed class HistoryStore : IHistoryStore
                 .Count(r => r.WasStanding
                             && r.Outcome == CycleOutcome.CompletedNaturally
                             && !r.WasTimeEdited
-                            && DateOnly.FromDateTime(r.StartedAt) == day);
+                            && LogicalDay.From(r.StartedAt, rolloverTime) == day);
         }
     }
 

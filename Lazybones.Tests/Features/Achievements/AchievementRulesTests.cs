@@ -39,7 +39,7 @@ public class AchievementRulesTests
         params string[] alreadyUnlocked)
     {
         history.Append(record);
-        return AchievementRules.EvaluateNewlyUnlocked(record, history, dailyCycleGoal, alreadyUnlocked, Today);
+        return AchievementRules.EvaluateNewlyUnlocked(record, history, dailyCycleGoal, alreadyUnlocked, Today, TimeSpan.Zero);
     }
 
     private static bool Unlocked(IReadOnlyList<Achievement> result, string id) =>

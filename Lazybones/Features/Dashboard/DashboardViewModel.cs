@@ -24,14 +24,16 @@ public class DashboardViewModel : ViewModelBase, IDisposable
     private readonly AppState _state;
     private readonly IHistoryStore _history;
     private readonly Action _onDailyGoalChanged;
+    private readonly Action _onAlwaysOnTopChanged;
     private readonly UpdateService _updates = UpdateService.Instance;
     private int _selectedTabIndex;
 
-    public DashboardViewModel(AppState state, IHistoryStore history, Action onDailyGoalChanged)
+    public DashboardViewModel(AppState state, IHistoryStore history, Action onDailyGoalChanged, Action onAlwaysOnTopChanged)
     {
         _state = state;
         _history = history;
         _onDailyGoalChanged = onDailyGoalChanged;
+        _onAlwaysOnTopChanged = onAlwaysOnTopChanged;
 
         Achievements = AchievementCatalog.All
             .Select(a => new AchievementViewItem(a, _state.UnlockedAchievementIds.Contains(a.Id)))
@@ -147,6 +149,56 @@ public class DashboardViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // Two ints decomposed from the persisted TimeSpan, bound to ClockDial's
+    // Hour / Minute. RolloverTimeText is the formatted face shown on the
+    // dropdown button — must re-raise whenever either component changes.
+    public int RolloverHour
+    {
+        get => _state.DayRolloverTime.Hours;
+        set
+        {
+            var clamped = ((value % 24) + 24) % 24;
+            if (_state.DayRolloverTime.Hours == clamped) return;
+            _state.DayRolloverTime = new TimeSpan(clamped, _state.DayRolloverTime.Minutes, 0);
+            _state.SaveState();
+            OnPropertyChanged(nameof(RolloverHour));
+            OnPropertyChanged(nameof(RolloverTimeText));
+        }
+    }
+
+    public int RolloverMinute
+    {
+        get => _state.DayRolloverTime.Minutes;
+        set
+        {
+            var clamped = ((value % 60) + 60) % 60;
+            if (_state.DayRolloverTime.Minutes == clamped) return;
+            _state.DayRolloverTime = new TimeSpan(_state.DayRolloverTime.Hours, clamped, 0);
+            _state.SaveState();
+            OnPropertyChanged(nameof(RolloverMinute));
+            OnPropertyChanged(nameof(RolloverTimeText));
+        }
+    }
+
+    public string RolloverTimeText =>
+        $"{_state.DayRolloverTime.Hours:00}:{_state.DayRolloverTime.Minutes:00}";
+
+    // Bound to a ComboBox's SelectedIndex: 0 = seated, 1 = standing. Kept as
+    // a derived view over the bool in AppState so persistence semantics stay
+    // unchanged.
+    public int StartDayModeIndex
+    {
+        get => _state.StartDayStanding ? 1 : 0;
+        set
+        {
+            var standing = value == 1;
+            if (_state.StartDayStanding == standing) return;
+            _state.StartDayStanding = standing;
+            _state.SaveState();
+            OnPropertyChanged(nameof(StartDayModeIndex));
+        }
+    }
+
     // Derived from cycle goal × cycle length — the implicit minute equivalent
     // of your daily commitment. The heatmap uses this to colour cells.
     public int DailyMinuteThreshold => _state.DailyCycleGoal * _state.StandingTimeInMinutes;
@@ -166,16 +218,31 @@ public class DashboardViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public bool AlwaysOnTop
+    {
+        get => _state.AlwaysOnTop;
+        set
+        {
+            if (_state.AlwaysOnTop == value) return;
+            _state.AlwaysOnTop = value;
+            _state.SaveState();
+            OnPropertyChanged(nameof(AlwaysOnTop));
+            _onAlwaysOnTopChanged();
+        }
+    }
+
     public string StartWithOsLabel => StartupService.Instance.LoginItemLabel;
 
-    public int TodayStandingMinutes => _history.StandingMinutesOn(DateOnly.FromDateTime(DateTime.Now));
-    public int TodayStandingCycles => _history.CompletedStandingCyclesOn(DateOnly.FromDateTime(DateTime.Now));
+    private DateOnly Today => LogicalDay.From(DateTime.Now, _state.DayRolloverTime);
+
+    public int TodayStandingMinutes => _history.StandingMinutesOn(Today, _state.DayRolloverTime);
+    public int TodayStandingCycles => _history.CompletedStandingCyclesOn(Today, _state.DayRolloverTime);
 
     public string TodayProgressText => $"{TodayStandingCycles} / {DailyCycleGoal} cycles";
     public string TodayMinutesText => $"{TodayStandingMinutes} min stood";
 
     public int CurrentStreak => StreakCalculator.CalculateCurrent(
-        _history, _state.DailyCycleGoal, DateOnly.FromDateTime(DateTime.Now));
+        _history, _state.DailyCycleGoal, Today, _state.DayRolloverTime);
 
     public IReadOnlyDictionary<DateOnly, int> HeatmapData { get; }
 
@@ -189,17 +256,18 @@ public class DashboardViewModel : ViewModelBase, IDisposable
 
     private Dictionary<DateOnly, int> BuildHeatmap()
     {
-        var today = DateOnly.FromDateTime(DateTime.Now);
+        var rollover = _state.DayRolloverTime;
+        var today = LogicalDay.From(DateTime.Now, rollover);
         var dow = ((int)today.DayOfWeek + 6) % 7;
         var lastMonday = today.AddDays(-dow);
         var firstMonday = lastMonday.AddDays(-12 * 7);
-        var records = _history.GetRange(firstMonday, today);
+        var records = _history.GetRange(firstMonday, today, rollover);
 
         var data = new Dictionary<DateOnly, int>();
         foreach (var r in records)
         {
             if (!r.WasStanding) continue;
-            var d = DateOnly.FromDateTime(r.EndedAt);
+            var d = LogicalDay.From(r.EndedAt, rollover);
             data[d] = data.GetValueOrDefault(d, 0) + r.ActualDurationSeconds / 60;
         }
         return data;
@@ -208,15 +276,16 @@ public class DashboardViewModel : ViewModelBase, IDisposable
     private int[] BuildCyclesPerDay()
     {
         const int days = 14;
-        var today = DateOnly.FromDateTime(DateTime.Now);
+        var rollover = _state.DayRolloverTime;
+        var today = LogicalDay.From(DateTime.Now, rollover);
         var start = today.AddDays(-(days - 1));
-        var records = _history.GetRange(start, today);
+        var records = _history.GetRange(start, today, rollover);
 
         var result = new int[days];
         foreach (var r in records)
         {
             if (!r.WasStanding || r.Outcome != CycleOutcome.CompletedNaturally) continue;
-            var day = DateOnly.FromDateTime(r.StartedAt);
+            var day = LogicalDay.From(r.StartedAt, rollover);
             var index = day.DayNumber - start.DayNumber;
             if (index >= 0 && index < days) result[index]++;
         }

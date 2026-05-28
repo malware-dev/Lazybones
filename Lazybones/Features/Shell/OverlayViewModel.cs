@@ -85,6 +85,20 @@ public class OverlayViewModel : ViewModelBase
         _toastTimer.Start();
     }
 
+    public void ShowDayRollover(string title, string message)
+    {
+        // Preempts any visible toast or queued achievement, same as the idle
+        // toast — a day reset is a foreground event the user should see.
+        Title = title;
+        Message = message;
+        OverlayType = OverlayType.DayRolloverToast;
+        IsVisible = true;
+
+        _toastTimer?.Stop();
+        _toastTimer = new DispatcherTimer(TimeSpan.FromSeconds(4), DispatcherPriority.Background, OnToastTick);
+        _toastTimer.Start();
+    }
+
     private static string FormatAwayDuration(TimeSpan d)
     {
         if (d.TotalHours >= 1)
@@ -124,11 +138,11 @@ public class OverlayViewModel : ViewModelBase
     {
         _toastTimer?.Stop();
         _toastTimer = null;
-        if (OverlayType == OverlayType.IdleResumeToast)
+        if (OverlayType is OverlayType.IdleResumeToast or OverlayType.DayRolloverToast)
         {
             IsVisible = false;
-            // After the idle toast clears, drain any achievements that may have
-            // unlocked while the user was away.
+            // After the preempting toast clears, drain any achievements that
+            // may have unlocked while it was on screen.
             TryShowNextAchievement();
             return;
         }
@@ -180,5 +194,6 @@ public enum OverlayType
     Confirmation,
     TimeAdjustment,
     AchievementToast,
-    IdleResumeToast
+    IdleResumeToast,
+    DayRolloverToast
 }
