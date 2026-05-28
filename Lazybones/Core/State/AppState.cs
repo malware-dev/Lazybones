@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Lazybones.Features.History;
 
 namespace Lazybones.Core.State;
 
@@ -77,6 +78,24 @@ public class AppState
     // boundary without showing the toast.
     public DateTime? LastRolloverAppliedAt { get; set; }
 
+    // In-flight cycle's accumulated pauses (completed intervals only). Swept
+    // into the CycleRecord.Pauses list at cycle end, then cleared. Null/empty
+    // when the cycle has had no pauses yet.
+    public List<PauseInterval> CurrentCyclePauses { get; set; } = new();
+
+    // When a pause is currently in progress (screen locked, manual pause,
+    // app shutdown), these capture the start. Null when no pause is active.
+    // On startup the constructor completes any in-progress pause by setting
+    // EndedAt to now.
+    public DateTime? CurrentPauseStartedAt { get; set; }
+    public PauseReason? CurrentPauseReason { get; set; }
+
+    // Heartbeat written on every periodic state-save (throttled in
+    // MainWindowViewModel). On a graceful exit Dispose marks an AppShutdown
+    // pause explicitly; this field is the fallback that lets us infer a
+    // crash-induced pause when no in-progress pause was recorded.
+    public DateTime? AppLastAliveAt { get; set; }
+
     public void SaveState() => SaveTo(GetFilePath());
 
     /// <summary>
@@ -147,5 +166,9 @@ public class AppState
     }
 }
 
+// UseStringEnumConverter keeps PauseReason readable in state.json ("ScreenLock"
+// rather than 0) and stable against future enum reorderings. Without an
+// explicit option the source generator defaults to integer enums.
+[JsonSourceGenerationOptions(WriteIndented = false, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(AppState))]
 internal partial class AppStateJsonContext : JsonSerializerContext;

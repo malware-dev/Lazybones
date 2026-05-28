@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace Lazybones.Features.History;
@@ -13,6 +14,25 @@ public enum CycleOutcome
     // "did the user interact with the app this day?" checks can ignore it —
     // the rollover is not a short-circuit the user is responsible for.
     RolloverReset
+}
+
+public enum PauseReason
+{
+    ScreenLock,
+    ManualPause,
+    AppShutdown
+}
+
+// A single span of paused time inside a cycle. The cycle's ActualDurationSeconds
+// already excludes pause time by construction (EndedAt = StartedAt + actual),
+// so these intervals are purely informational — they let us audit a cycle's
+// real-time span and explain gaps in user perception ("why did this cycle
+// take 8 hours when it was a 45-min stand?").
+public sealed class PauseInterval
+{
+    public DateTime StartedAt { get; set; }
+    public DateTime EndedAt { get; set; }
+    public PauseReason Reason { get; set; }
 }
 
 public sealed class CycleRecord
@@ -40,6 +60,11 @@ public sealed class CycleRecord
     // progress — but they're still recorded and still contribute to lifetime
     // stats display (minutes stood today, heatmap intensity, etc.).
     public bool WasTimeEdited { get; set; }
+
+    // Every span of paused time that occurred during this cycle. Empty list
+    // for cycles with no pauses. Old records (pre-1.1.x) deserialize with the
+    // default empty list.
+    public List<PauseInterval> Pauses { get; set; } = new();
 }
 
 [JsonSourceGenerationOptions(WriteIndented = false, UseStringEnumConverter = true)]

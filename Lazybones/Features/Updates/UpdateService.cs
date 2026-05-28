@@ -3,6 +3,8 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using Lazybones.Core.Mvvm;
 using Velopack;
@@ -229,15 +231,27 @@ public sealed class UpdateService : ViewModelBase
     }
 
     /// <summary>
-    /// Applies the downloaded update and restarts the app. Returns synchronously
-    /// once Velopack has been told to take over; the process exits shortly after.
-    /// No-ops if no update has been downloaded yet (call CheckAsync or
-    /// RequestBackgroundCheck first; State must be UpdateReady).
+    /// Applies the downloaded update and restarts the app. No-ops if no update
+    /// has been downloaded yet (call CheckAsync or RequestBackgroundCheck first;
+    /// State must be UpdateReady).
+    ///
+    /// We deliberately avoid <c>UpdateManager.ApplyUpdatesAndRestart</c> — its
+    /// implementation calls <c>Environment.Exit(0)</c> immediately after
+    /// spawning Update.exe, which bypasses Avalonia's window-close events and
+    /// therefore our MainWindowViewModel.Dispose. In-flight cycle state would
+    /// be silently dropped on every auto-update restart. Instead we use the
+    /// lower-level <c>WaitExitThenApplyUpdates</c> (Update.exe waits on our
+    /// PID) and trigger a graceful Avalonia <c>Shutdown</c>, which routes
+    /// through OnClosed → Dispose → PersistCycleState.
     /// </summary>
     public void ApplyAndRestart()
     {
         if (_pendingUpdate is null) return;
-        _mgr.ApplyUpdatesAndRestart(_pendingUpdate);
+
+        _mgr.WaitExitThenApplyUpdates(_pendingUpdate, silent: false, restart: true);
+
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+            Dispatcher.UIThread.Post(() => lifetime.Shutdown());
     }
 
     protected override void RaisePropertyChanged(string? propertyName)

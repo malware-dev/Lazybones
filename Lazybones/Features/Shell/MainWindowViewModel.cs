@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
@@ -160,13 +161,41 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         {
             _cycleStartedAt = _state.CycleStartedAt.Value;
             _currentCycleTimeEdited = _state.CurrentCycleTimeEdited;
+            // StartNewCycle wiped the pause collection assuming a fresh cycle;
+            // for a restored cycle we keep whatever pauses had accumulated.
         }
+        _state.CurrentCyclePauses ??= new();
+
+        // Close out any pause that was open at last shutdown (graceful or not):
+        // an explicitly-recorded AppShutdown pause from Dispose, an in-flight
+        // ScreenLock the user was in when we exited, or a fallback pause
+        // synthesised from the AppLastAliveAt heartbeat when no in-progress
+        // pause was on record (covers crashes / kill / Environment.Exit).
+        if (_state.CurrentPauseStartedAt.HasValue)
+        {
+            EndPauseInterval();
+        }
+        else if (_state.AppLastAliveAt.HasValue && _state.CycleStartedAt.HasValue)
+        {
+            var gap = DateTime.Now - _state.AppLastAliveAt.Value;
+            if (gap.TotalSeconds >= 30)
+            {
+                _state.CurrentCyclePauses.Add(new PauseInterval
+                {
+                    StartedAt = _state.AppLastAliveAt.Value,
+                    EndedAt = DateTime.Now,
+                    Reason = PauseReason.AppShutdown
+                });
+            }
+        }
+        _state.AppLastAliveAt = DateTime.Now;
         RefreshOuterRing();
         RefreshInnerRing();
         RefreshStreak();
 
         _presence.Locked += OnScreenLocked;
         _presence.Unlocked += OnScreenUnlocked;
+        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
 
         // Apply any day rollover that should have fired while the app was
         // closed. First-run anchors silently (no toast).
@@ -235,6 +264,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _cycleStartedAt = DateTime.Now;
         _currentCycleTimeEdited = false;
         _cyclePlannedSeconds = (IsStanding ? _state.StandingTimeInMinutes : _state.SittingTimeInMinutes) * 60;
+        // Fresh cycle starts with no pauses; any in-progress pause from the
+        // previous cycle is dropped (cycle transitions imply the user is back).
+        _state.CurrentCyclePauses = new();
+        _state.CurrentPauseStartedAt = null;
+        _state.CurrentPauseReason = null;
         RefreshInnerRing();
 
         // Flush the new mode/cycle to disk now, not just on Dispose: a swap is
@@ -286,6 +320,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             responseDelaySeconds = 0;
         }
 
+        // Any pause that's still in flight at cycle-end gets closed off here
+        // (e.g. cycle finishes naturally while the screen is still locked —
+        // unlikely but possible).
+        EndPauseInterval();
+
         var record = new CycleRecord
         {
             StartedAt = _cycleStartedAt,
@@ -296,9 +335,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             Outcome = outcome,
             PromptDismissed = promptDismissed,
             ResponseDelaySeconds = responseDelaySeconds,
-            WasTimeEdited = _currentCycleTimeEdited
+            WasTimeEdited = _currentCycleTimeEdited,
+            Pauses = _state.CurrentCyclePauses?.ToList() ?? new()
         };
         _history.Append(record);
+
+        // Pauses now live on the record; reset the in-flight collection.
+        _state.CurrentCyclePauses = new();
 
         RefreshOuterRing();
         RefreshStreak();
@@ -471,7 +514,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private void PlayPause()
     {
         if (IsRunning)
-            Pause();
+            Pause(trackAs: PauseReason.ManualPause);
         else
             Resume();
     }
@@ -488,9 +531,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             ? PickRandom(StandUpNowTexts)
             : PickRandom(YouCanSitNowTexts);
         IsRunning = true;
+        EndPauseInterval();
     }
 
-    private void Pause(string? pauseText = "Paused...")
+    private void Pause(string? pauseText = "Paused...", PauseReason? trackAs = null)
     {
         if (!IsRunning) return;
         // Reset (not Stop) so any residual elapsed is discarded; otherwise
@@ -499,6 +543,33 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (pauseText != null)
             Text = pauseText;
         IsRunning = false;
+        if (trackAs.HasValue) StartPauseInterval(trackAs.Value);
+    }
+
+    private void StartPauseInterval(PauseReason reason)
+    {
+        // Only one pause may be in flight at a time — re-entrant pause sources
+        // (e.g. lock fires while a manual pause is already open) keep the
+        // earlier reason.
+        if (_state.CurrentPauseStartedAt.HasValue) return;
+        _state.CurrentPauseStartedAt = DateTime.Now;
+        _state.CurrentPauseReason = reason;
+        _state.SaveState();
+    }
+
+    private void EndPauseInterval()
+    {
+        if (!_state.CurrentPauseStartedAt.HasValue) return;
+        _state.CurrentCyclePauses ??= new();
+        _state.CurrentCyclePauses.Add(new PauseInterval
+        {
+            StartedAt = _state.CurrentPauseStartedAt.Value,
+            EndedAt = DateTime.Now,
+            Reason = _state.CurrentPauseReason ?? PauseReason.ManualPause
+        });
+        _state.CurrentPauseStartedAt = null;
+        _state.CurrentPauseReason = null;
+        _state.SaveState();
     }
 
     private void Reset()
@@ -610,10 +681,38 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _presence.Unlocked -= OnScreenUnlocked;
         _presence.Dispose();
         UpdateService.Instance.PropertyChanged -= OnUpdateServicePropertyChanged;
+        AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
 
         _state.Left = (int)WindowPosition.X;
         _state.Top = (int)WindowPosition.Y;
+
+        // If a cycle is in flight, mark the start of a shutdown pause now.
+        // The next launch's constructor will close it. If a pause is already
+        // active (e.g. screen lock at shutdown time), leave it as-is — its
+        // ScreenLock reason is more specific than AppShutdown.
+        if (_state.CycleStartedAt.HasValue && !_state.CurrentPauseStartedAt.HasValue)
+        {
+            _state.CurrentPauseStartedAt = DateTime.Now;
+            _state.CurrentPauseReason = PauseReason.AppShutdown;
+        }
+        _state.AppLastAliveAt = DateTime.Now;
         PersistCycleState();
+    }
+
+    // Last-ditch persistence for ungraceful exits (Environment.Exit from
+    // Velopack, OS shutdown, etc.). Avalonia window-close events do NOT fire
+    // on Environment.Exit, so Dispose may never run. ProcessExit at least
+    // gives us a ~2 s window to flush the heartbeat + mark the shutdown pause.
+    private void OnProcessExit(object? sender, EventArgs e)
+    {
+        if (_disposed) return;
+        if (_state.CycleStartedAt.HasValue && !_state.CurrentPauseStartedAt.HasValue)
+        {
+            _state.CurrentPauseStartedAt = DateTime.Now;
+            _state.CurrentPauseReason = PauseReason.AppShutdown;
+        }
+        _state.AppLastAliveAt = DateTime.Now;
+        _state.SaveState();
     }
 
     private void ConfirmToggle()
@@ -698,6 +797,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             _stopwatch.Reset();
     }
 
+    private DateTime _lastPersistedAt = DateTime.MinValue;
+    private static readonly TimeSpan PersistThrottle = TimeSpan.FromSeconds(5);
+
     private void OnTimerTick(object? sender, EventArgs e)
     {
         var today = LogicalDay.From(DateTime.Now, _state.DayRolloverTime);
@@ -711,6 +813,18 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         // Day rollover is checked on every tick (cheap; usually a no-op) so
         // it fires while the app is open, not only on startup/unlock.
         ApplyDayRolloverIfDue();
+
+        // Heartbeat: persist state at most every 5 s. On a crash/kill/forced
+        // exit the recovery logic uses AppLastAliveAt to synthesise a pause
+        // from "last alive" to next launch, so the worst we ever lose is one
+        // throttle window.
+        var now = DateTime.Now;
+        if (now - _lastPersistedAt >= PersistThrottle)
+        {
+            _lastPersistedAt = now;
+            _state.AppLastAliveAt = now;
+            PersistCycleState();
+        }
 
         if (!IsRunning) return;
         Time -= _stopwatch.Elapsed;
@@ -728,7 +842,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         _autoPauseStartedAt = DateTime.Now;
         _autoPaused = true;
-        Pause("Locked...");
+        Pause("Locked...", PauseReason.ScreenLock);
     }
 
     private void OnScreenUnlocked(object? sender, EventArgs e)
